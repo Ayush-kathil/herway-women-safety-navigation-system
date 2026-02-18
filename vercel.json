@@ -1,7 +1,7 @@
 {
   "version": 2,
   "public": true,
-  "buildCommand": "cd frontend && npm install && npm run build",
+  "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "frontend/.next",
   "framework": "nextjs",
   "rewrites": [
@@ -9,5 +9,8 @@
       "source": "/(.*)",
       "destination": "/frontend/$1"
     }
-  ]
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "http://localhost:8000"
+  }
 }
