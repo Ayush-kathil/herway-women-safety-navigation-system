@@ -6,11 +6,16 @@ import joblib
 import numpy as np
 
 # 1. Load Processed Data
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "processed_crime_data.csv")
+MODEL_PATH = os.path.join(BASE_DIR, "safety_model.pkl")
+
 try:
-    df = pd.read_csv("processed_crime_data.csv")
+    df = pd.read_csv(DATA_PATH)
     print("Dataset loaded.")
 except FileNotFoundError:
-    print("Error: 'processed_crime_data.csv' not found. Run data_prep.py first.")
+    print(f"Error: '{DATA_PATH}' not found. Run data_prep.py first.")
     exit()
 
 # 2. Select Features (Inputs) and Target (Output)
@@ -41,5 +46,5 @@ print(f"Root Mean Squared Error (RMSE): {rmse:.2f}")
 print(f"R^2 Score: {r2:.2f}")
 
 # 6. Save the Model
-joblib.dump(model, "safety_model.pkl")
-print("✅ Model Saved as 'safety_model.pkl'")
+joblib.dump(model, MODEL_PATH)
+print(f"✅ Model Saved as '{MODEL_PATH}'")

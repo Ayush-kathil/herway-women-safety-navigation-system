@@ -2,32 +2,30 @@ import pandas as pd
 import numpy as np
 
 # 1. Load the Dataset
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_PATH = os.path.join(BASE_DIR, "data.csv")
+
 try:
     # Try reading with different encodings to avoid issues
-    df = pd.read_csv("data.csv", encoding='utf-8')
+    df = pd.read_csv(CSV_PATH, encoding='utf-8')
     print("Dataset Loaded Successfully!")
 except FileNotFoundError:
-    print("Error: file 'data.csv' not found. Please put the CSV in the same folder.")
+    print(f"Error: file '{CSV_PATH}' not found. Please put the CSV in the same folder.")
     exit()
 except Exception as e:
     print(f"Error loading CSV: {e}")
     exit()
 
-# 2. Coordinate Shift (Indore -> Bangalore Simulation)
-# Indore center: ~22.7, 75.8
-# Bangalore center: ~12.9, 77.5
-LAT_SHIFT = 12.9141 - 22.7196
-LONG_SHIFT = 77.5946 - 75.8577
-
-# Standardize column names
+# 2. Standardize column names (keep original Indore coordinates)
 df.columns = [c.lower().strip() for c in df.columns]
 
-if 'latitude' in df.columns and 'longitude' in df.columns:
-    df['latitude'] = df['latitude'] + LAT_SHIFT
-    df['longitude'] = df['longitude'] + LONG_SHIFT
-else:
+if 'latitude' not in df.columns or 'longitude' not in df.columns:
     print("Error: 'latitude' or 'longitude' columns not found.")
     exit()
+
+print(f"Coordinate range: lat [{df['latitude'].min():.4f}, {df['latitude'].max():.4f}], "
+      f"lng [{df['longitude'].min():.4f}, {df['longitude'].max():.4f}]")
 
 # 3. Create 'Risk Score' based on Crime Type
 # We assign weights: Heinous crimes = 100, Petty crimes = 20
@@ -68,6 +66,7 @@ else:
 
 # 5. Save Processed Data
 output_cols = ['latitude', 'longitude', 'hour', 'day_of_week', 'risk_score']
-df[output_cols].to_csv("processed_crime_data.csv", index=False)
-print("✅ Data Processed and Saved as 'processed_crime_data.csv'")
+OUTPUT_PATH = os.path.join(BASE_DIR, "processed_crime_data.csv")
+df[output_cols].to_csv(OUTPUT_PATH, index=False)
+print(f"✅ Data Processed and Saved as '{OUTPUT_PATH}'")
 print(df[output_cols].head())
