@@ -81,7 +81,7 @@
   .glass {
     @apply bg-white/70 dark:bg-black/70 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-xl;
   }
-  
+
   .glass-card {
     @apply bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-[1.01];
   }
@@ -89,19 +89,172 @@
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-500;
   }
-  
+
   .safe-area-padding {
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
+/* ========== MAP STYLES ========== */
+
 .leaflet-container {
   width: 100%;
   height: 100%;
   z-index: 0;
-  background: #ffffff !important;
+  background: #1a1a2e !important;
 }
+
+/* ========== USER POSITION — PULSING BLUE DOT ========== */
+
+.user-position-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.user-dot-container {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-dot-core {
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow:
+    0 0 12px rgba(59, 130, 246, 0.6),
+    0 0 24px rgba(59, 130, 246, 0.3);
+  z-index: 2;
+  position: absolute;
+}
+
+.user-dot-pulse {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.25);
+  animation: pulse-blue 2s ease-out infinite;
+  z-index: 1;
+}
+
+@keyframes pulse-blue {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* ========== HEADING ARROW ========== */
+
+.user-heading-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.user-heading-arrow {
+  transition: transform 0.3s ease-out;
+}
+
+/* ========== CRIME HOTSPOT PULSE ========== */
+
+.crime-hotspot-pulse {
+  animation: pulse-crime 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-crime {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ========== DANGER ZONE OVERLAY ========== */
+
+.danger-pulse-bg {
+  animation: danger-bg-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes danger-bg-pulse {
+  0%, 100% {
+    background-color: rgba(69, 10, 10, 0.6);
+  }
+  50% {
+    background-color: rgba(127, 29, 29, 0.7);
+  }
+}
+
+.danger-pulse-border {
+  animation: danger-border-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes danger-border-pulse {
+  0%, 100% {
+    border-color: rgba(239, 68, 68, 0.3);
+    box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.1);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.7);
+    box-shadow: inset 0 0 60px rgba(239, 68, 68, 0.2);
+  }
+}
+
+/* ========== ANIMATED ROUTE DASH ========== */
+
+.route-animated-dash {
+  stroke-dasharray: 12 8;
+  animation: route-dash-flow 1s linear infinite;
+}
+
+@keyframes route-dash-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+/* ========== BOTTOM SHEET ENTRANCE ========== */
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ========== APPLE-STYLE CARD FADE ========== */
+
+@keyframes fade-in-scale {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-fade-in-scale {
+  animation: fade-in-scale 0.3s ease-out;
+}
+
+/* ========== SCROLLBAR ========== */
 
 ::-webkit-scrollbar {
   width: 6px;

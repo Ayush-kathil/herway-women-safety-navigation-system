@@ -175,14 +175,20 @@ def predict_safety(lat: float, long: float, hour: int, day_of_week: int = -1):
     risk_score = max(0, min(100, risk_score))
     
     # Determine category
-    category = "Safe"
+    category = "Very Safe"
     color = "green"
-    if risk_score > 75:
-        category = "High Risk"
+    if risk_score > 80:
+        category = "Dangerous"
         color = "red"
+    elif risk_score > 60:
+        category = "Risky"
+        color = "orange"
     elif risk_score > 40:
-        category = "Moderate Risk"
+        category = "Moderate"
         color = "yellow"
+    elif risk_score > 20:
+        category = "Safe"
+        color = "teal"
 
     advice = generate_advice(risk_score, hour, crime_count)
         
@@ -254,7 +260,7 @@ def analyze_route(request: RouteRequest):
     start = request.waypoints[0]
     end = request.waypoints[-1]
     
-    url = f"http://router.project-osrm.org/route/v1/driving/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3"
+    url = f"http://router.project-osrm.org/route/v1/driving/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3&steps=true"
     
     try:
         response = requests.get(url, timeout=8)
@@ -270,6 +276,43 @@ def analyze_route(request: RouteRequest):
         return {"error": "Could not fetch route. Please check internet connection."}
 
     time_mod = get_time_modifier(request.hour)
+
+    def parse_steps(route_obj):
+        steps_out = []
+        for leg in route_obj.get("legs", []):
+            for step in leg.get("steps", []):
+                maneuver = step.get("maneuver", {})
+                instruction = step.get("name", "")
+                modifier = maneuver.get("modifier", "")
+                m_type = maneuver.get("type", "")
+                loc = maneuver.get("location", [0, 0])
+                
+                if m_type == "depart":
+                    text = f"Head {modifier} on {instruction}" if modifier else f"Start on {instruction or 'road'}"
+                elif m_type == "arrive":
+                    text = "You have arrived at your destination"
+                elif m_type == "turn":
+                    text = f"Turn {modifier} onto {instruction}" if instruction else f"Turn {modifier}"
+                elif m_type == "fork":
+                    text = f"Take the {modifier} fork onto {instruction}" if instruction else f"Take the {modifier} fork"
+                elif m_type == "roundabout":
+                    text = f"Enter roundabout, exit onto {instruction}" if instruction else "Enter roundabout"
+                elif m_type == "merge":
+                    text = f"Merge {modifier} onto {instruction}" if instruction else f"Merge {modifier}"
+                elif m_type in ("end of road", "end_of_road"):
+                    text = f"At end of road, turn {modifier} onto {instruction}" if instruction else f"At end of road, turn {modifier}"
+                elif m_type == "new name":
+                    text = f"Continue onto {instruction}" if instruction else "Continue straight"
+                else:
+                    text = f"Continue on {instruction}" if instruction else "Continue straight"
+                
+                steps_out.append({
+                    "instruction": text,
+                    "distance_m": round(step.get("distance", 0)),
+                    "maneuver": f"{m_type}-{modifier}" if modifier else m_type,
+                    "location": [loc[1], loc[0]],
+                })
+        return steps_out
 
     def score_route(route_geometry):
         full_path = [[p[1], p[0]] for p in route_geometry]
@@ -297,18 +340,17 @@ def analyze_route(request: RouteRequest):
                 
                 time_contribution = time_mod * 15
                 
-                # ML model = 60%, crime = 25%, time = 15%
                 score = (model_score * 0.60) + crime_factor + time_contribution
                 score = max(0, min(100, score))
                 
                 total_risk += score
                 risk_counts += 1
                 
-                color = "#10b981"  # green
+                color = "#10b981"
                 if score > 65:
-                    color = "#ef4444"  # red
+                    color = "#ef4444"
                 elif score > 35:
-                    color = "#eab308"  # yellow
+                    color = "#eab308"
                 
                 annotated_segments.append({
                     "path": chunk,
@@ -330,6 +372,7 @@ def analyze_route(request: RouteRequest):
         duration = route.get("duration", 0)
         distance = route.get("distance", 0)
         segments, avg, mx, crimes = score_route(coords)
+        steps = parse_steps(route)
         scored_routes.append({
             "route_index": idx,
             "risk_segments": segments,
@@ -339,6 +382,7 @@ def analyze_route(request: RouteRequest):
             "duration_min": round(duration / 60, 1),
             "distance_km": round(distance / 1000, 1),
             "total_crimes_along_route": crimes,
+            "steps": steps,
         })
     
     scored_routes.sort(key=lambda r: r["average_safety_score"])
@@ -346,7 +390,6 @@ def analyze_route(request: RouteRequest):
     safest = scored_routes[0]
     alternatives = scored_routes[1:] if len(scored_routes) > 1 else []
     
-    # Calculate comparison stats
     comparison = None
     if alternatives:
         worst_avg = max(r["average_safety_score"] for r in alternatives)
@@ -359,7 +402,6 @@ def analyze_route(request: RouteRequest):
             "crimes_avoided": max(r["total_crimes_along_route"] for r in alternatives) - safest["total_crimes_along_route"],
         }
     
-    # Generate route-specific reasoning
     reasons = []
     if safest["is_safe"]:
         reasons.append("Low average risk score across all segments")
