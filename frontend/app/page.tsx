@@ -357,9 +357,9 @@ export default function Dashboard() {
         const midLng = (start.lng + end.lng) / 2;
         fetchCrimeHotspots(midLat, midLng);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setErrorMsg("Failed to analyze route. Check your internet connection.");
+      setErrorMsg(`Connection Error: ${e.message || "Unknown error"}. Check console.`);
     } finally { setLoading(false); }
   };
 
