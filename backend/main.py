@@ -10,7 +10,10 @@ import pandas as pd
 import requests
 import warnings
 import math
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 app = FastAPI()
@@ -18,7 +21,8 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",
     "http://localhost:3000",
-    "*"
+    "http://localhost:3001",
+    os.environ.get("FRONTEND_URL", "http://localhost:3000"),
 ]
 
 app.add_middleware(
@@ -34,14 +38,16 @@ MODEL_PATH = os.path.join(BASE_DIR, "safety_model.pkl")
 
 try:
     model = joblib.load(MODEL_PATH)
-    print("AI Model Loaded Successfully")
-except:
-    print(f"Error: '{MODEL_PATH}' not found. Run train_model.py first.")
+    logger.info("AI Model Loaded Successfully")
+except Exception as e:
+    logger.error(f"Error loading model from '{MODEL_PATH}': {e}. Run train_model.py first.")
     model = None
 
 # --- Crime Data Loading ---
 CRIME_CSV = os.path.join(BASE_DIR, "data.csv")
 crime_df = None
+crime_lats = None
+crime_lngs = None
 try:
     raw = pd.read_csv(CRIME_CSV)
     def parse_hour(ts):
@@ -55,13 +61,17 @@ try:
                 elif "." in time_part:
                     return int(time_part.split(".")[0])
             return 12
-        except:
-            return 12 
+        except (ValueError, IndexError) as e:
+            logger.debug(f"Could not parse hour from '{ts}': {e}")
+            return 12
     raw["crime_hour"] = raw["timestamp"].apply(parse_hour)
     crime_df = raw[["latitude", "longitude", "crime_hour"]].dropna()
-    print(f"Crime Data Loaded: {len(crime_df)} records")
+    # Pre-compute NumPy arrays for vectorized distance calculations
+    crime_lats = np.radians(crime_df["latitude"].values)
+    crime_lngs = np.radians(crime_df["longitude"].values)
+    logger.info(f"Crime Data Loaded: {len(crime_df)} records (vectorized)")
 except Exception as e:
-    print(f"Warning: Could not load crime data: {e}")
+    logger.warning(f"Could not load crime data: {e}")
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -74,15 +84,17 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 def crime_density_near(lat, lng, radius=800):
-    """Count crime incidents within radius meters of a point."""
-    if crime_df is None:
+    """Count crime incidents within radius meters using vectorized NumPy."""
+    if crime_df is None or crime_lats is None:
         return 0
-    count = 0
-    for _, row in crime_df.iterrows():
-        d = haversine(lat, lng, row["latitude"], row["longitude"])
-        if d <= radius:
-            count += 1
-    return count
+    R = 6371000
+    lat_r = math.radians(lat)
+    lng_r = math.radians(lng)
+    dlat = crime_lats - lat_r
+    dlng = crime_lngs - lng_r
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat_r) * np.cos(crime_lats) * np.sin(dlng / 2) ** 2
+    distances = R * 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    return int(np.sum(distances <= radius))
 
 
 def get_time_modifier(hour):
@@ -260,7 +272,7 @@ def analyze_route(request: RouteRequest):
     start = request.waypoints[0]
     end = request.waypoints[-1]
     
-    url = f"http://router.project-osrm.org/route/v1/driving/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3&steps=true"
+    url = f"http://router.project-osrm.org/route/v1/foot/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3&steps=true"
     
     try:
         response = requests.get(url, timeout=8)
@@ -357,9 +369,10 @@ def analyze_route(request: RouteRequest):
                     "score": round(score, 1),
                     "color": color
                 })
-            except:
+            except Exception as e:
+                logger.warning(f"Segment scoring error at ({lat},{long}): {e}")
                 annotated_segments.append({
-                    "path": chunk, "score": 0, "color": "#9ca3af"
+                    "path": chunk, "score": 50, "color": "#eab308"
                 })
         
         avg = total_risk / max(1, risk_counts)
@@ -477,6 +490,52 @@ def get_safety_grid(lat_min: float, lat_max: float, long_min: float, long_max: f
         return []
 
     return grid_data
+
+
+@app.get("/safe_places")
+def get_safe_places(lat: float, lng: float, radius: int = 2000):
+    """Find nearby safe places (police, hospitals, pharmacies) via Overpass API."""
+    query = f"""
+    [out:json][timeout:10];
+    (
+      node["amenity"="police"](around:{radius},{lat},{lng});
+      node["amenity"="hospital"](around:{radius},{lat},{lng});
+      node["amenity"="pharmacy"](around:{radius},{lat},{lng});
+      node["shop"="convenience"](around:{radius},{lat},{lng});
+      node["amenity"="fuel"](around:{radius},{lat},{lng});
+    );
+    out body;
+    """
+    try:
+        res = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data={"data": query},
+            timeout=10
+        )
+        data = res.json()
+        places = []
+        for el in data.get("elements", [])[:30]:
+            tags = el.get("tags", {})
+            amenity = tags.get("amenity", tags.get("shop", "place"))
+            name = tags.get("name", amenity.title())
+
+            icon = "📍"
+            if amenity == "police": icon = "👮"
+            elif amenity == "hospital": icon = "🏥"
+            elif amenity == "pharmacy": icon = "💊"
+            elif amenity in ("convenience", "fuel"): icon = "🏪"
+
+            places.append({
+                "lat": el.get("lat"),
+                "lng": el.get("lon"),
+                "name": name,
+                "type": amenity,
+                "icon": icon,
+            })
+        return places
+    except Exception as e:
+        logger.error(f"Safe places API error: {e}")
+        return []
 
 
 if __name__ == "__main__":

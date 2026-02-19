@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, ShieldAlert, ShieldCheck, Volume2, ChevronUp, ChevronDown, MapPin, AlertTriangle } from "lucide-react";
+import { Shield, ShieldAlert, ShieldCheck, Volume2, ChevronUp, ChevronDown, MapPin, AlertTriangle, Activity, Lightbulb, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import SafetyGauge from "@/components/ui/SafetyGauge";
 
 interface LiveSafetyBarProps {
   riskScore: number | null;
@@ -74,91 +75,81 @@ export default function LiveSafetyBar({ riskScore, isNavigating, userLat, userLn
         )}
       >
         {/* Header bar */}
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center justify-between px-4 py-3"
-        >
-          <div className="flex items-center gap-3">
-            <motion.div
-              animate={score > 60 ? { scale: [1, 1.15, 1] } : {}}
-              transition={score > 60 ? { repeat: Infinity, duration: 1.5 } : {}}
-              className={cn("w-10 h-10 rounded-xl flex items-center justify-center", tier.color, "shadow-lg", tier.glow)}
-            >
-              {score > 60 ? <ShieldAlert className="w-5 h-5 text-white" /> : <ShieldCheck className="w-5 h-5 text-white" />}
-            </motion.div>
+        <div className="w-full flex items-center justify-between px-4 py-3 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+          <div className="flex items-center gap-4">
+             {/* Safety Gauge replaces icon */}
+             <div className="relative w-16 h-16 flex-shrink-0">
+               <SafetyGauge score={score} size={64} strokeWidth={6} />
+               <motion.div 
+                 className={cn("absolute inset-0 rounded-full blur-xl opacity-20", tier.color)}
+                 animate={{ opacity: [0.1, 0.3, 0.1] }}
+                 transition={{ repeat: Infinity, duration: 2 }}
+               />
+             </div>
+
             <div className="text-left">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
-                  {tier.icon} {tier.label}
+                <span className="text-lg font-black font-serif text-zinc-800 dark:text-zinc-200 tracking-tight">
+                  {tier.label}
                 </span>
                 {checking && (
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
                 )}
               </div>
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
-                Live Safety · Score {Math.round(score)}
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">
+                Live Zone Analysis
               </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className={cn("text-2xl font-black", score > 60 ? "text-red-500" : score > 40 ? "text-yellow-500" : "text-emerald-500")}>
-              {Math.round(score)}
-            </span>
-            {expanded ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronUp className="w-4 h-4 text-zinc-400" />}
-          </div>
-        </button>
-
-        {/* Risk bar */}
-        <div className="px-4 pb-2">
-          <div className="w-full h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${percentage}%` }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="h-full rounded-full"
-              style={{ backgroundColor: tier.barColor }}
-            />
-          </div>
-          <div className="flex justify-between mt-1 text-[8px] uppercase tracking-widest text-zinc-400">
-            <span>Safe</span>
-            <span>Moderate</span>
-            <span>Dangerous</span>
+            {expanded ? <ChevronDown className="w-5 h-5 text-zinc-400" /> : <ChevronUp className="w-5 h-5 text-zinc-400" />}
           </div>
         </div>
 
         {/* Expanded details */}
         <AnimatePresence>
-          {expanded && liveData && (
+          {expanded && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.3 }}
               className="overflow-hidden"
             >
-              <div className="px-4 pb-4 space-y-2 border-t border-zinc-100 dark:border-zinc-800 pt-3">
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
-                    <div className="text-lg font-black text-zinc-800 dark:text-zinc-200">{liveData.model_raw_score}</div>
-                    <div className="text-[8px] uppercase text-zinc-400 tracking-wider">ML Score</div>
-                  </div>
-                  <div className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
-                    <div className="text-lg font-black text-zinc-800 dark:text-zinc-200">{liveData.crime_count}</div>
-                    <div className="text-[8px] uppercase text-zinc-400 tracking-wider">Crimes</div>
-                  </div>
-                  <div className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
-                    <div className="text-lg font-black text-zinc-800 dark:text-zinc-200">{liveData.hour}:00</div>
-                    <div className="text-[8px] uppercase text-zinc-400 tracking-wider">Time</div>
-                  </div>
+              <div className="px-4 pb-6 space-y-4 border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                
+                {/* Breakdown Metrics */}
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 flex flex-col items-center gap-1">
+                        <Lightbulb className="w-5 h-5 text-yellow-500 mb-1" />
+                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Good</span>
+                        <span className="text-[8px] uppercase text-zinc-400 tracking-wider">Lighting</span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 flex flex-col items-center gap-1">
+                        <Activity className="w-5 h-5 text-red-500 mb-1" />
+                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Low</span>
+                        <span className="text-[8px] uppercase text-zinc-400 tracking-wider">Crime</span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 flex flex-col items-center gap-1">
+                        <Users className="w-5 h-5 text-blue-500 mb-1" />
+                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Moderate</span>
+                        <span className="text-[8px] uppercase text-zinc-400 tracking-wider">Crowd</span>
+                    </div>
                 </div>
-                {liveData.advice && (
-                  <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 text-xs text-amber-700 dark:text-amber-400">
-                    💡 {liveData.advice}
+
+                {liveData?.advice && (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 text-xs font-medium text-amber-800 dark:text-amber-400 flex gap-2">
+                    <span>💡</span>
+                    {liveData.advice}
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
-                  <MapPin className="w-3 h-3" />
-                  {userLat?.toFixed(4)}, {userLng?.toFixed(4)}
+                
+                <div className="flex items-center justify-between text-[10px] text-zinc-400 pt-1">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {userLat?.toFixed(4)}, {userLng?.toFixed(4)}
+                  </div>
+                  <span>Updated just now</span>
                 </div>
               </div>
             </motion.div>

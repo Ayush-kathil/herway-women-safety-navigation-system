@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle, Polyline, CircleMarker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
@@ -33,6 +33,8 @@ interface CrimeHotspot {
 
 export type MapTheme = "dark" | "light" | "satellite";
 
+import { SafePlace } from "@/lib/types";
+
 interface MapProps {
   center: [number, number];
   zoom: number;
@@ -41,12 +43,15 @@ interface MapProps {
   gridData?: Array<{ lat: number; lng: number; score: number; color: string }>;
   routeSegments?: RouteSegment[];
   crimeHotspots?: CrimeHotspot[];
+  safePlaces?: SafePlace[]; // NEW
   allRoutes?: RouteData[];
   selectedRouteIdx?: number;
   userPosition?: { lat: number; lng: number; heading: number | null } | null;
   isNavigating?: boolean;
   mapTheme?: MapTheme;
   showTraffic?: boolean;
+  startPoint?: { lat: number; lng: number };
+  endPoint?: { lat: number; lng: number };
 }
 
 function MapEvents({ onLocationSelect }: { onLocationSelect?: (lat: number, lng: number) => void }) {
@@ -68,20 +73,33 @@ function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }
   return null;
 }
 
-function FollowUser({ lat, lng, isNavigating }: { lat: number; lng: number; isNavigating: boolean }) {
+function FollowUser({ lat, lng, isNavigating, is3D }: { lat: number; lng: number; isNavigating: boolean; is3D: boolean }) {
   const map = useMap();
   const prevPos = useRef<[number, number] | null>(null);
+  const prevIs3D = useRef<boolean>(is3D);
 
   useEffect(() => {
     if (!isNavigating) return;
     const newPos: [number, number] = [lat, lng];
-    if (!prevPos.current) {
-      map.flyTo(newPos, 17, { duration: 1.2 });
+    const modeChanged = prevIs3D.current !== is3D;
+    
+    // Premium 3D Navigation Behavior (Google Maps Style)
+    if (is3D) {
+       // Aggressively fly to the point with high zoom (19) and tilt
+       map.flyTo(newPos, 19, { animate: true, duration: 2.0, easeLinearity: 0.1 });
     } else {
-      map.panTo(newPos, { animate: true, duration: 0.5 });
+       // Standard 2D Behavior
+       if (modeChanged || !prevPos.current) {
+         // Zoom out if we just switched to 2D
+         map.flyTo(newPos, 16, { duration: 1.5 });
+       } else {
+         // Smooth panning for normal 2D movement
+         map.panTo(newPos, { animate: true, duration: 0.8 });
+       }
     }
     prevPos.current = newPos;
-  }, [lat, lng, isNavigating, map]);
+    prevIs3D.current = is3D;
+  }, [lat, lng, isNavigating, is3D, map]);
 
   return null;
 }
@@ -119,7 +137,7 @@ function createHeadingIcon(heading: number) {
 
 const TILE_LAYERS: Record<MapTheme, { url: string; attribution: string }> = {
   light: {
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
   },
   dark: {
@@ -132,11 +150,48 @@ const TILE_LAYERS: Record<MapTheme, { url: string; attribution: string }> = {
   },
 };
 
+const TOMTOM_KEY = process.env.NEXT_PUBLIC_TOMTOM_KEY || "";
 const TRAFFIC_LAYER = {
-  url: "https://{s}.api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=ek3vPOqbSH8sVEaYblCrAjGr03XIDLSP&tileSize=256",
+  url: `https://{s}.api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_KEY}&tileSize=256`,
   subdomains: ["a", "b", "c", "d"],
   attribution: '&copy; <a href="https://developer.tomtom.com/">TomTom</a> Traffic',
 };
+
+// Custom Icons
+const startIcon = L.divIcon({
+  className: "custom-map-icon",
+  html: `<div class="w-4 h-4 bg-black dark:bg-white rounded-full border-2 border-white dark:border-black shadow-lg relative"><div class="absolute -inset-2 bg-black/20 dark:bg-white/20 rounded-full animate-ping"></div></div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
+
+const endIcon = L.divIcon({
+  className: "custom-map-icon",
+  html: `<div class="w-8 h-8 flex items-center justify-center"><div class="text-2xl">🏁</div></div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+});
+
+const policeIcon = L.divIcon({
+  className: "custom-map-icon",
+  html: `<div class="w-8 h-8 bg-blue-600 rounded-full border-2 border-white text-white flex items-center justify-center shadow-md"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
+
+const hospitalIcon = L.divIcon({
+  className: "custom-map-icon",
+  html: `<div class="w-8 h-8 bg-red-600 rounded-full border-2 border-white text-white flex items-center justify-center shadow-md"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v8"/><path d="M8 12h8"/></svg></div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
+
+const defaultSafeIcon = L.divIcon({
+  className: "custom-map-icon",
+  html: `<div class="w-6 h-6 bg-green-500 rounded-full border-2 border-white shadow-md"></div>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+});
 
 const MapComponent = ({
   center,
@@ -146,24 +201,41 @@ const MapComponent = ({
   gridData = [],
   routeSegments = [],
   crimeHotspots = [],
+  safePlaces = [],
   allRoutes = [],
   selectedRouteIdx = 0,
   userPosition = null,
   isNavigating = false,
   mapTheme = "dark",
   showTraffic = false,
+  startPoint,
+  endPoint,
 }: MapProps) => {
 
   const hasMultipleRoutes = allRoutes.length > 1;
   const hasAnyRoute = allRoutes.length > 0 || routeSegments.length > 0;
   const tile = TILE_LAYERS[mapTheme];
+  const [is3D, setIs3D] = useState(false);
+
+  // Auto-enable 3D mode when navigation starts
+  useEffect(() => {
+    if (isNavigating) {
+      setIs3D(true);
+    }
+  }, [isNavigating]);
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.8 }}
-      className="w-full h-full rounded-2xl overflow-hidden glass shadow-2xl relative z-0"
+      animate={{ 
+        opacity: 1,
+        // improved 3D transform for "Google Maps" feel
+        transform: is3D 
+          ? "perspective(1200px) rotateX(60deg) scale(1.6) translateY(20%)" 
+          : "perspective(1000px) rotateX(0deg) scale(1) translateY(0)"
+      }}
+      transition={{ duration: 1.5, ease: [0.25, 0.1, 0.25, 1] }} 
+      className="w-full h-full rounded-2xl overflow-hidden glass shadow-2xl relative z-0 origin-bottom"
     >
       <MapContainer center={center} zoom={zoom} scrollWheelZoom={true} zoomControl={false} className="w-full h-full">
         <TileLayer
@@ -185,9 +257,17 @@ const MapComponent = ({
         <ChangeView center={center} zoom={zoom} />
         <MapEvents onLocationSelect={onLocationSelect} />
 
+        {/* Start/End Markers */}
+        {startPoint && (
+          <Marker position={[startPoint.lat, startPoint.lng]} icon={startIcon} />
+        )}
+        {endPoint && (
+          <Marker position={[endPoint.lat, endPoint.lng]} icon={endIcon} />
+        )}
+
         {/* Follow user during navigation */}
         {userPosition && isNavigating && (
-          <FollowUser lat={userPosition.lat} lng={userPosition.lng} isNavigating={isNavigating} />
+          <FollowUser lat={userPosition.lat} lng={userPosition.lng} isNavigating={isNavigating} is3D={is3D} />
         )}
 
         {/* User Position - Pulsing Blue Dot */}
@@ -198,9 +278,9 @@ const MapComponent = ({
               center={[userPosition.lat, userPosition.lng]}
               radius={30}
               pathOptions={{
-                color: "rgba(59,130,246,0.3)",
-                fillColor: "rgba(59,130,246,0.1)",
-                fillOpacity: 0.3,
+                color: "rgba(0,0,0,0.3)",
+                fillColor: "rgba(0,0,0,0.1)",
+                fillOpacity: 0.1,
                 weight: 1,
               }}
             />
@@ -210,8 +290,8 @@ const MapComponent = ({
               icon={createUserIcon()}
             >
               <Popup>
-                <div style={{ fontFamily: "sans-serif", fontSize: "12px" }}>
-                  <strong style={{ color: "#3b82f6" }}>📍 Your Location</strong>
+                <div style={{ fontFamily: "serif", fontSize: "12px" }}>
+                  <strong style={{ color: "#000000", textTransform: "uppercase", letterSpacing: "1px" }}>Your Location</strong>
                 </div>
               </Popup>
             </Marker>
@@ -248,12 +328,12 @@ const MapComponent = ({
               key={`alt-route-${rIdx}-seg-${sIdx}`}
               positions={segment.path.map(p => [p[0], p[1]] as [number, number])}
               pathOptions={{
-                color: "#fca5a5",
-                weight: 5,
-                opacity: 0.55,
+                color: "#71717a", // Zinc-500
+                weight: 4,
+                opacity: 0.4,
                 lineCap: "round",
                 lineJoin: "round",
-                dashArray: "8 6",
+                dashArray: "1, 6",
               }}
             />
           ));
@@ -313,6 +393,28 @@ const MapComponent = ({
           </CircleMarker>
         ))}
 
+        {/* Safe Places Markers */}
+        {safePlaces.map((place, idx) => {
+          let icon = defaultSafeIcon;
+          if (place.type === "police_station") icon = policeIcon;
+          else if (place.type === "hospital") icon = hospitalIcon;
+          
+          return (
+            <Marker
+              key={`safe-${idx}`}
+              position={[place.lat, place.lng]}
+              icon={icon}
+            >
+              <Popup>
+                <div style={{ fontFamily: "serif", minWidth: "150px" }}>
+                  <strong style={{ fontSize: "14px", color: "#000" }}>{place.name}</strong><br />
+                  <span style={{ textTransform: "uppercase", fontSize: "10px", color: "#666", letterSpacing: "1px" }}>{place.type.replace("_", " ")}</span>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
         {/* User Markers */}
         {markers.map((marker, idx) => (
           <Marker key={`marker-${idx}`} position={[marker.lat, marker.lng]}>
@@ -320,33 +422,46 @@ const MapComponent = ({
           </Marker>
         ))}
       </MapContainer>
+      
+      {/* 3D Toggle Button */}
+      <div className="absolute top-6 right-6 z-[1000] flex flex-col gap-2">
+         <button
+            onClick={() => setIs3D(!is3D)}
+            className="p-3 bg-white dark:bg-black text-zinc-800 dark:text-zinc-200 rounded-full shadow-2xl border-2 border-zinc-200 dark:border-zinc-800 hover:scale-110 active:scale-95 transition-all font-black text-xs uppercase tracking-widest"
+            title="Toggle 3D View"
+         >
+            {is3D ? "2D" : "3D"}
+         </button>
+      </div>
 
       {/* Route Legend */}
       {hasAnyRoute && (
-        <div className="absolute bottom-4 right-4 z-[500] bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-xl p-3 shadow-lg border border-zinc-200 dark:border-zinc-700">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2">Route Legend</div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-[3px] bg-emerald-500 rounded-full" />
-              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Safe Zone</span>
+        <div className="absolute bottom-6 right-6 z-[500] bg-white dark:bg-black rounded-lg p-4 shadow-2xl border border-zinc-200 dark:border-zinc-800">
+          <div className="text-[10px] font-serif font-bold uppercase tracking-widest text-zinc-500 mb-3 border-b border-zinc-100 dark:border-zinc-900 pb-2">
+            Route Legend
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-[2px] bg-emerald-600 dark:bg-emerald-500" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Safe</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-[3px] bg-yellow-500 rounded-full" />
-              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Moderate Risk</span>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-[2px] bg-yellow-500" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Moderate</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-[3px] bg-red-500 rounded-full" />
-              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">High Risk</span>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-[2px] bg-red-600 dark:bg-red-500" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">High Risk</span>
             </div>
             {hasMultipleRoutes && (
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-[3px] bg-red-300 rounded-full" style={{ borderBottom: "2px dashed #fca5a5" }} />
-                <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Alt. Route</span>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-[2px] bg-zinc-400" style={{ borderBottom: "2px dotted #a1a1aa" }} />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Alt. Route</span>
               </div>
             )}
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full border border-red-700" />
-              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Crime Incident</span>
+            <div className="flex items-center gap-3">
+              <div className="w-2.5 h-2.5 bg-red-600 rounded-full border border-black dark:border-white" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Incident</span>
             </div>
           </div>
         </div>
@@ -354,9 +469,9 @@ const MapComponent = ({
 
       {/* User position indicator (floating label) */}
       {userPosition && (
-        <div className="absolute top-4 left-4 z-[500] bg-blue-500/90 backdrop-blur-md rounded-xl px-3 py-1.5 shadow-lg flex items-center gap-2">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-          <span className="text-[11px] text-white font-semibold">Live GPS Active</span>
+        <div className="absolute top-6 left-6 z-[500] bg-white dark:bg-black border border-black dark:border-white px-4 py-2 shadow-xl flex items-center gap-3">
+          <div className="w-2 h-2 bg-black dark:bg-white rounded-full animate-pulse" />
+          <span className="text-[10px] font-serif font-bold uppercase tracking-widest text-black dark:text-white">Live GPS Active</span>
         </div>
       )}
 

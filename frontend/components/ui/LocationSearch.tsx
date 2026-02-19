@@ -19,7 +19,7 @@ interface LocationSearchProps {
   onSelect: (lat: number, lng: number, name: string) => void;
   onClear?: () => void;
   className?: string;
-  accent?: "emerald" | "rose";
+  accent?: "emerald" | "rose" | "black";
 }
 
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
@@ -30,7 +30,7 @@ export default function LocationSearch({
   onSelect,
   onClear,
   className,
-  accent = "rose",
+  accent = "black", // Default to black for Classical Theme
 }: LocationSearchProps) {
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -130,26 +130,32 @@ export default function LocationSearch({
     return `${parts[0]}, ${parts[1]}, ${parts[2]}`;
   };
 
-  const accentColors = accent === "emerald"
-    ? { ring: "focus-within:ring-emerald-500/30 focus-within:border-emerald-500", dot: "bg-emerald-500" }
-    : { ring: "focus-within:ring-rose-500/30 focus-within:border-rose-500", dot: "bg-rose-500" };
+  const accentColors = {
+    emerald: { ring: "focus-within:ring-emerald-500/30 focus-within:border-emerald-500", dot: "bg-emerald-500", icon: "text-emerald-500" },
+    rose: { ring: "focus-within:ring-rose-500/30 focus-within:border-rose-500", dot: "bg-rose-500", icon: "text-rose-500" },
+    black: { 
+      ring: "focus-within:ring-black/10 dark:focus-within:ring-white/20 focus-within:border-black dark:focus-within:border-white", 
+      dot: "bg-black dark:bg-white", 
+      icon: "text-black dark:text-white" 
+    }
+  }[accent] || { ring: "focus-within:ring-zinc-500/30 focus-within:border-zinc-500", dot: "bg-zinc-500", icon: "text-zinc-500" };
 
   return (
     <div ref={wrapperRef} className={cn("relative", className)}>
       <div className={cn(
-        "flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all",
-        "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700",
-        "focus-within:ring-2", accentColors.ring
+        "flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all",
+        "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800",
+        "focus-within:ring-0", accentColors.ring
       )}>
-        <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", accentColors.dot)} />
-        <Search className="w-4 h-4 text-zinc-400 shrink-0" />
+        <div className={cn("w-2 h-2 rounded-full shrink-0", accentColors.dot)} />
+        <Search className={cn("w-4 h-4 shrink-0", accentColors.icon)} />
         <input
           type="text"
           value={query}
           onChange={(e) => handleInputChange(e.target.value)}
           onFocus={() => setIsOpen(true)}
           placeholder={placeholder}
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400 text-zinc-800 dark:text-zinc-200"
+          className="flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-zinc-400 text-zinc-900 dark:text-white font-serif"
         />
         {loading && <Loader2 className="w-4 h-4 text-zinc-400 animate-spin shrink-0" />}
         {query && !loading && (
@@ -167,18 +173,18 @@ export default function LocationSearch({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full left-0 right-0 mt-1 z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden max-h-[280px] overflow-y-auto"
+            className="absolute top-full left-0 right-0 mt-1 z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl overflow-hidden max-h-[280px] overflow-y-auto"
           >
             {/* Search results */}
             {results.length > 0 && results.map((result, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSelect(result)}
-                className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+                className="w-full flex items-start gap-2.5 px-3 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors border-b border-zinc-100 dark:border-zinc-800 last:border-0"
               >
                 <MapPin className="w-4 h-4 text-zinc-400 mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                  <div className="text-sm font-serif font-bold text-zinc-900 dark:text-white truncate">
                     {formatName(result.display_name)}
                   </div>
                   <div className="text-[10px] text-zinc-400 capitalize">{result.type.replace(/_/g, " ")}</div>
@@ -189,17 +195,17 @@ export default function LocationSearch({
             {/* Recent searches */}
             {results.length === 0 && query.length < 3 && recentSearches.length > 0 && (
               <>
-                <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50">
-                  Recent Searches
+                <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-400 bg-zinc-50 dark:bg-zinc-800/30">
+                  Recent
                 </div>
                 {recentSearches.map((r, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleRecentSelect(r)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors border-b border-zinc-100 dark:border-zinc-800 last:border-0"
                   >
                     <Clock className="w-3.5 h-3.5 text-zinc-400" />
-                    <span className="text-sm text-zinc-600 dark:text-zinc-400 truncate">{r.name}</span>
+                    <span className="text-sm font-medium font-serif text-zinc-600 dark:text-zinc-300 truncate">{r.name}</span>
                   </button>
                 ))}
               </>

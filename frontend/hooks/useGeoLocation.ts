@@ -32,6 +32,9 @@ export default function useGeoLocation() {
       return;
     }
 
+    // Prevent duplicate watchers
+    if (watchRef.current !== null) return;
+
     setState((s) => ({ ...s, watching: true, error: null }));
 
     watchRef.current = navigator.geolocation.watchPosition(

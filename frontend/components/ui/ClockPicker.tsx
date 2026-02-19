@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, Clock } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface ClockPickerProps {
@@ -10,172 +10,141 @@ interface ClockPickerProps {
   onChange: (hour: number) => void;
 }
 
-const ClockPicker = ({ hour, onChange }: ClockPickerProps) => {
+export default function ClockPicker({ hour, onChange }: ClockPickerProps) {
+  // Determine initial period based on hour prop
+  // Note: hour prop is 0-23
   const [period, setPeriod] = useState<"AM" | "PM">(hour >= 12 ? "PM" : "AM");
-  
-  const displayHours = period === "AM" 
-    ? [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    : [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-  
-  const get24Hour = (displayHr: number, p: "AM" | "PM") => {
-    if (p === "AM") return displayHr === 12 ? 0 : displayHr;
-    return displayHr === 12 ? 12 : displayHr + 12;
+  const clockRef = useRef<HTMLDivElement>(null);
+
+  // Convert 0-23 hour to 1-12 for display
+  const displayHour = hour % 12 || 12;
+
+  const handleTimeChange = (newHour12: number) => {
+    let finalHour = newHour12;
+    // Adjust based on CURRENT period state
+    if (period === "AM" && finalHour === 12) finalHour = 0;
+    if (period === "PM" && finalHour !== 12) finalHour += 12;
+    // Edge case: if user clicks 12 and it's PM, it should be 12 (noon).
+    // If user clicks 12 and it's AM, it should be 0 (midnight).
+    onChange(finalHour);
   };
 
-  const getDisplayHour = () => {
-    if (hour === 0) return 12;
-    if (hour > 12) return hour - 12;
-    return hour;
+  const handleInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!clockRef.current) return;
+    const rect = clockRef.current.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = clientX - centerX;
+    const dy = clientY - centerY;
+
+    // Calculate angle in degrees (0 at top/12 o'clock)
+    // atan2(y, x) gives angle from X axis. We want angle from -Y axis (top).
+    // dx, -dy transforms coords so Y is up.
+    // Actually, let's keep it simple:
+    // angle = atan2(dy, dx) is from 3 o'clock clockwise if y is down.
+    // Let's use standard:
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90; // +90 to make 12 o'clock 0 degrees
+    if (angle < 0) angle += 360;
+
+    // Snap to nearest hour (30 degrees per hour)
+    const snappedAngle = Math.round(angle / 30) * 30;
+    let newHour = Math.round(snappedAngle / 30);
+    if (newHour === 0) newHour = 12;
+
+    handleTimeChange(newHour);
   };
 
-  const handleHourClick = (displayHr: number) => {
-    const h24 = get24Hour(displayHr, period);
-    onChange(h24);
+  const togglePeriod = () => {
+    const newPeriod = period === "AM" ? "PM" : "AM";
+    setPeriod(newPeriod);
+    let h = hour;
+    // Convert current 24h time to new period
+    if (newPeriod === "PM" && h < 12) h += 12;
+    if (newPeriod === "AM" && h >= 12) h -= 12;
+    onChange(h);
   };
-
-  const handlePeriodToggle = (p: "AM" | "PM") => {
-    setPeriod(p);
-    const currentDisplay = getDisplayHour();
-    const h24 = get24Hour(currentDisplay, p);
-    onChange(h24);
-  };
-
-  const isNight = hour >= 19 || hour <= 5;
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      {/* Period Toggle */}
-      <div className="flex gap-1 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
-        <button
-          onClick={() => handlePeriodToggle("AM")}
-          className={cn(
-            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-            period === "AM"
-              ? "bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-md shadow-amber-500/25"
-              : "text-zinc-500 hover:text-zinc-700"
-          )}
-        >
-          <Sun className="w-3 h-3 inline mr-1" /> AM
-        </button>
-        <button
-          onClick={() => handlePeriodToggle("PM")}
-          className={cn(
-            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-            period === "PM"
-              ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md shadow-indigo-500/25"
-              : "text-zinc-500 hover:text-zinc-700"
-          )}
-        >
-          <Moon className="w-3 h-3 inline mr-1" /> PM
-        </button>
-      </div>
-
-      {/* Clock Face */}
-      <div className="relative w-[200px] h-[200px]">
-        {/* Outer Ring */}
-        <div className={cn(
-          "absolute inset-0 rounded-full border-2 transition-colors duration-500",
-          isNight 
-            ? "border-indigo-500/30 bg-gradient-to-br from-indigo-950/50 to-purple-950/50" 
-            : "border-amber-400/30 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10"
-        )} />
-        
-        {/* Inner Glow */}
-        <div className={cn(
-          "absolute inset-4 rounded-full transition-colors duration-500",
-          isNight
-            ? "bg-gradient-to-br from-indigo-900/20 to-transparent"
-            : "bg-gradient-to-br from-amber-100/30 to-transparent dark:from-amber-900/10"
-        )} />
-
-        {/* Center Display */}
-        <div className="absolute inset-0 flex items-center justify-center">
+    <div className="flex flex-col items-center select-none w-full">
+       {/* Period Switch - Pill Shape */}
+       <div className="relative flex bg-zinc-100 dark:bg-zinc-900 rounded-full p-1 mb-8 shadow-inner border border-zinc-200 dark:border-zinc-800 w-full max-w-[200px]">
           <motion.div 
-            key={hour}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="flex flex-col items-center"
+            className="absolute top-1 bottom-1 w-[50%] bg-white dark:bg-zinc-800 rounded-full shadow-sm z-0"
+            animate={{ left: period === "AM" ? "4px" : "calc(50% - 4px)" }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          />
+          <button 
+            onClick={() => { if(period !== "AM") togglePeriod() }}
+            className={cn("relative z-10 w-1/2 py-2 rounded-full text-xs font-serif font-bold tracking-widest transition-colors flex items-center justify-center gap-2", period === "AM" ? "text-black dark:text-white" : "text-zinc-400")}
           >
-            <span className={cn(
-              "text-4xl font-black tabular-nums tracking-tight",
-              isNight ? "text-indigo-300" : "text-amber-600 dark:text-amber-400"
-            )}>
-              {getDisplayHour().toString().padStart(2, '0')}
-            </span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-              {period} · {isNight ? "Night" : hour < 12 ? "Morning" : "Day"}
-            </span>
-          </motion.div>
-        </div>
+            <Sun className="w-3 h-3" /> AM
+          </button>
+          <button 
+            onClick={() => { if(period !== "PM") togglePeriod() }}
+            className={cn("relative z-10 w-1/2 py-2 rounded-full text-xs font-serif font-bold tracking-widest transition-colors flex items-center justify-center gap-2", period === "PM" ? "text-black dark:text-white" : "text-zinc-400")}
+          >
+            <Moon className="w-3 h-3" /> PM
+          </button>
+       </div>
 
-        {/* Hour Marks */}
-        {displayHours.map((displayHr, idx) => {
-          const angle = (idx * 30 - 90) * (Math.PI / 180);
-          const radius = 82;
-          const x = 100 + radius * Math.cos(angle);
-          const y = 100 + radius * Math.sin(angle);
-          
-          const h24 = get24Hour(displayHr, period);
-          const isSelected = h24 === hour;
-          
-          return (
-            <button
-              key={displayHr}
-              onClick={() => handleHourClick(displayHr)}
-              className="absolute z-10"
-              style={{
-                left: `${x}px`,
-                top: `${y}px`,
-                transform: 'translate(-50%, -50%)',
-              }}
-            >
-              <motion.div
-                whileHover={{ scale: 1.3 }}
-                whileTap={{ scale: 0.9 }}
-                className={cn(
-                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300",
-                  isSelected
-                    ? isNight
-                      ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/40 scale-110"
-                      : "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/40 scale-110"
-                    : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                )}
+       {/* Clock Face */}
+       <div 
+         ref={clockRef}
+         className="relative w-64 h-64 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black shadow-2xl cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform touch-none"
+         onClick={handleInteraction}
+         onTouchMove={handleInteraction} // Simple drag support
+       >
+          {/* Hour Markers */}
+          {[...Array(12)].map((_, i) => {
+            const h = i === 0 ? 12 : i;
+            const angle = i * 30;
+            const isSelected = h === displayHour;
+            return (
+              <div 
+                key={i}
+                className="absolute w-full h-full top-0 left-0 pointer-events-none"
+                style={{ transform: `rotate(${angle}deg)` }}
               >
-                {displayHr}
-              </motion.div>
-            </button>
-          );
-        })}
+                <div className={cn(
+                  "absolute top-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 transition-all",
+                   isSelected ? "scale-110" : "opacity-40"
+                )}>
+                  <span className={cn(
+                    "text-xl font-serif font-bold rotate-[calc(-1*var(--rot))]", 
+                    isSelected ? "text-black dark:text-white" : "text-zinc-400"
+                  )} style={{ "--rot": `${angle}deg` } as any}>
+                    {h}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
 
-        {/* Clock Hand */}
-        {(() => {
-          const displayHr = getDisplayHour();
-          const idx = displayHours.indexOf(displayHr);
-          const angle = idx * 30 - 90;
-          return (
-            <div
-              className="absolute top-1/2 left-1/2 origin-left z-0"
-              style={{
-                width: '60px',
-                height: '2px',
-                transform: `rotate(${angle}deg)`,
-                background: isNight
-                  ? 'linear-gradient(to right, rgba(129,140,248,0.6), rgba(129,140,248,0))'
-                  : 'linear-gradient(to right, rgba(245,158,11,0.6), rgba(245,158,11,0))',
-                transition: 'transform 0.3s ease-out',
-              }}
-            />
-          );
-        })()}
+          {/* Clock Hand */}
+          <motion.div 
+            className="absolute top-0 left-1/2 w-[2px] h-[50%] bg-black dark:bg-white origin-bottom z-20 pointer-events-none"
+            animate={{ rotate: displayHour * 30 }}
+            transition={{ type: "spring", stiffness: 150, damping: 15 }}
+            style={{ x: "-50%", y: "0%" }}
+          >
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 w-4 h-4 bg-black dark:bg-white rounded-full border-2 border-white dark:border-black shadow-lg" />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-8 bg-black dark:bg-white rounded-full" />
+          </motion.div>
 
-        {/* Center Dot */}
-        <div className={cn(
-          "absolute top-1/2 left-1/2 w-2.5 h-2.5 rounded-full -translate-x-1/2 -translate-y-1/2 z-10",
-          isNight ? "bg-indigo-400" : "bg-amber-500"
-        )} />
-      </div>
+          {/* Center Hub */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-black dark:bg-white rounded-full z-30 ring-4 ring-white dark:ring-black" />
+       </div>
+
+       <div className="mt-8 text-center space-y-2">
+         <div className="text-5xl font-serif font-black text-black dark:text-white tracking-tighter flex items-center justify-center gap-1">
+           {displayHour}<span className="animate-pulse">:</span>00
+           <span className="text-lg text-zinc-400 self-start mt-2 font-sans font-medium">{period}</span>
+         </div>
+         <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-medium">Predictive Safety Analysis</p>
+       </div>
     </div>
   );
-};
-
-export default ClockPicker;
+}

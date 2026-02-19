@@ -1,5 +1,52 @@
 @import "tailwindcss";
 
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+    --card: #ffffff;
+    --card-foreground: #000000;
+    --popover: #ffffff;
+    --popover-foreground: #000000;
+    --primary: #000000;
+    --primary-foreground: #ffffff;
+    --secondary: #f4f4f5;
+    --secondary-foreground: #000000;
+    --muted: #f4f4f5;
+    --muted-foreground: #71717a;
+    --accent: #f4f4f5;
+    --accent-foreground: #000000;
+    --destructive: #ef4444;
+    --destructive-foreground: #fafafa;
+    --border: #e4e4e7;
+    --input: #e4e4e7;
+    --ring: #000000;
+    --radius: 2rem; /* Soft roundness for cards, pill shapes use rounded-full */
+  }
+ 
+  .dark {
+    --background: #000000;
+    --foreground: #ffffff;
+    --card: #000000;
+    --card-foreground: #ffffff;
+    --popover: #000000;
+    --popover-foreground: #ffffff;
+    --primary: #ffffff;
+    --primary-foreground: #000000;
+    --secondary: #27272a;
+    --secondary-foreground: #ffffff;
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+    --accent: #27272a;
+    --accent-foreground: #ffffff;
+    --destructive: #7f1d1d;
+    --destructive-foreground: #fafafa;
+    --border: #3f3f46;
+    --input: #3f3f46;
+    --ring: #d4d4d8;
+  }
+}
+
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -21,251 +68,145 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --radius-radius: var(--radius);
-}
-
-:root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --card: #ffffff;
-  --card-foreground: #0a0a0a;
-  --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
-  --primary: #18181b;
-  --primary-foreground: #fafafa;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
-  --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  --border: #e4e4e7;
-  --input: #e4e4e7;
-  --ring: #18181b;
-  --radius: 0.75rem;
-}
-
-.dark {
-  --background: #0a0a0a;
-  --foreground: #fafafa;
-  --card: #0a0a0a;
-  --card-foreground: #fafafa;
-  --popover: #0a0a0a;
-  --popover-foreground: #fafafa;
-  --primary: #fafafa;
-  --primary-foreground: #18181b;
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
-  --destructive: #7f1d1d;
-  --destructive-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #d4d4d8;
+  
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-playfair), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--border);
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
+/* Custom Utilities */
 @layer utilities {
   .glass {
-    @apply bg-white/70 dark:bg-black/70 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-xl;
+    background-color: rgba(255, 255, 255, 0.95); /* More opaque */
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.1);
   }
-
-  .glass-card {
-    @apply bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-[1.01];
+  
+  :is(.dark .glass) {
+    background-color: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 20px -2px rgba(255, 255, 255, 0.1);
   }
-
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-500;
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
   }
-
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
   .safe-area-padding {
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
   }
-}
 
-/* ========== MAP STYLES ========== */
-
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  background: #1a1a2e !important;
-}
-
-/* ========== USER POSITION — PULSING BLUE DOT ========== */
-
-.user-position-marker {
-  background: transparent !important;
-  border: none !important;
-}
-
-.user-dot-container {
-  position: relative;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.user-dot-core {
-  width: 16px;
-  height: 16px;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  border-radius: 50%;
-  border: 3px solid white;
-  box-shadow:
-    0 0 12px rgba(59, 130, 246, 0.6),
-    0 0 24px rgba(59, 130, 246, 0.3);
-  z-index: 2;
-  position: absolute;
-}
-
-.user-dot-pulse {
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(59, 130, 246, 0.25);
-  animation: pulse-blue 2s ease-out infinite;
-  z-index: 1;
-}
-
-@keyframes pulse-blue {
-  0% {
-    transform: scale(0.5);
-    opacity: 0.8;
+  .classical-border {
+    border: 1px solid var(--border);
   }
-  100% {
-    transform: scale(2);
-    opacity: 0;
+
+  /* Reveal Animations */
+  @keyframes reveal-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-}
 
-/* ========== HEADING ARROW ========== */
-
-.user-heading-marker {
-  background: transparent !important;
-  border: none !important;
-}
-
-.user-heading-arrow {
-  transition: transform 0.3s ease-out;
-}
-
-/* ========== CRIME HOTSPOT PULSE ========== */
-
-.crime-hotspot-pulse {
-  animation: pulse-crime 2.5s ease-in-out infinite;
-}
-
-@keyframes pulse-crime {
-  0%, 100% {
-    opacity: 0.6;
+  .animate-reveal {
+    animation: reveal-up 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   }
-  50% {
-    opacity: 1;
+
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+
+  /* Map Marker Styles */
+  .user-position-marker {
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-}
-
-/* ========== DANGER ZONE OVERLAY ========== */
-
-.danger-pulse-bg {
-  animation: danger-bg-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes danger-bg-pulse {
-  0%, 100% {
-    background-color: rgba(69, 10, 10, 0.6);
+  
+  .user-dot-container {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  50% {
-    background-color: rgba(127, 29, 29, 0.7);
+  
+  .user-dot-pulse {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
   }
-}
-
-.danger-pulse-border {
-  animation: danger-border-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes danger-border-pulse {
-  0%, 100% {
-    border-color: rgba(239, 68, 68, 0.3);
-    box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.1);
+  
+  .dark .user-dot-pulse {
+    background-color: rgba(255, 255, 255, 0.2);
   }
-  50% {
-    border-color: rgba(239, 68, 68, 0.7);
-    box-shadow: inset 0 0 60px rgba(239, 68, 68, 0.2);
+  
+  .user-dot-core {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    background-color: #000000;
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    z-index: 10;
   }
-}
-
-/* ========== ANIMATED ROUTE DASH ========== */
-
-.route-animated-dash {
-  stroke-dasharray: 12 8;
-  animation: route-dash-flow 1s linear infinite;
-}
-
-@keyframes route-dash-flow {
-  to {
-    stroke-dashoffset: -20;
+  
+  .dark .user-dot-core {
+    background-color: #ffffff;
+    border: 3px solid #000000;
   }
-}
-
-/* ========== BOTTOM SHEET ENTRANCE ========== */
-
-@keyframes slide-up {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
+  
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(0.33);
+      opacity: 1;
+    }
+    80%, 100% {
+      transform: scale(1);
+      opacity: 0;
+    }
   }
-  to {
-    transform: translateY(0);
-    opacity: 1;
+
+  /* Safe Place Marker */
+  .safe-place-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    border: 2px solid #000000;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   }
-}
-
-/* ========== APPLE-STYLE CARD FADE ========== */
-
-@keyframes fade-in-scale {
-  from {
-    transform: scale(0.95);
-    opacity: 0;
+  
+  .dark .safe-place-marker {
+    background: #000000;
+    border: 2px solid #ffffff;
+    color: #ffffff;
   }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.animate-fade-in-scale {
-  animation: fade-in-scale 0.3s ease-out;
-}
-
-/* ========== SCROLLBAR ========== */
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-zinc-300 dark:bg-zinc-700 rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-zinc-400 dark:bg-zinc-600;
 }
