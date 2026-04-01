@@ -116,6 +116,27 @@ def get_time_modifier(hour):
     else:
         return 0.8
 
+def get_lighting(hour):
+    if 7 <= hour <= 17: return np.random.uniform(0.8, 1.0)
+    if hour in [6, 18]: return np.random.uniform(0.4, 0.7)
+    return np.random.uniform(0.0, 0.3)
+
+def get_crowd(hour):
+    if 9 <= hour <= 20: return np.random.uniform(0.5, 1.0)
+    if 21 <= hour <= 23: return np.random.uniform(0.2, 0.6)
+    return np.random.uniform(0.0, 0.2)
+
+# Simulated police hubs around Indore center
+lat_center, lon_center = 22.7196, 75.8577
+police_hubs = [
+    (lat_center + np.random.normal(0, 0.02), lon_center + np.random.normal(0, 0.02))
+    for _ in range(5)
+]
+
+def min_distance_to_police(lat, lon):
+    distances = [np.sqrt((lat - p[0])**2 + (lon - p[1])**2) * 111.0 for p in police_hubs]
+    return abs(min(distances) + np.random.normal(0, 0.5))
+
 
 def generate_advice(risk_score, hour, crime_count):
     """Generate dynamic, context-aware safety advice."""
@@ -174,7 +195,8 @@ def predict_safety(lat: float, long: float, hour: int, day_of_week: int = -1):
         day_of_week = datetime.now().weekday()
     
     try:
-        prediction = model.predict([[lat, long, hour, day_of_week]])
+        inputs = [[lat, long, hour, day_of_week, get_lighting(hour), get_crowd(hour), min_distance_to_police(lat, long)]]
+        prediction = model.predict(inputs)
         model_score = float(prediction[0])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction Error: {e}")
@@ -356,7 +378,8 @@ def analyze_route(request: RouteRequest):
             lat, long = mid_point
             
             try:
-                pred = model.predict([[lat, long, request.hour, day]])
+                inputs = [[lat, long, request.hour, day, get_lighting(request.hour), get_crowd(request.hour), min_distance_to_police(lat, long)]]
+                pred = model.predict(inputs)
                 model_score = float(pred[0])
                 
                 crime_count = crime_density_near(lat, long, 800)
@@ -470,7 +493,7 @@ def get_safety_grid(lat_min: float, lat_max: float, long_min: float, long_max: f
     
     for lat in lat_steps:
         for long in long_steps:
-            input_data.append([lat, long, hour, day])
+            input_data.append([lat, long, hour, day, get_lighting(hour), get_crowd(hour), min_distance_to_police(lat, long)])
             coords.append((lat, long))
             
     if not input_data:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle, Polyline, CircleMarker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
@@ -104,20 +104,18 @@ function FollowUser({ lat, lng, isNavigating, is3D }: { lat: number; lng: number
   return null;
 }
 
-// Create pulsing blue dot icon for user position
-function createUserIcon() {
-  return L.divIcon({
-    className: "user-position-marker",
-    html: `
-      <div class="user-dot-container">
-        <div class="user-dot-pulse"></div>
-        <div class="user-dot-core"></div>
-      </div>
-    `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-  });
-}
+// Constant user dot icon to stop React-Leaflet from thrashing the DOM on re-render
+const userDotIcon = L.divIcon({
+  className: "user-position-marker",
+  html: `
+    <div class="user-dot-container">
+      <div class="user-dot-pulse"></div>
+      <div class="user-dot-core"></div>
+    </div>
+  `,
+  iconSize: [40, 40],
+  iconAnchor: [20, 20],
+});
 
 // Create heading arrow icon
 function createHeadingIcon(heading: number) {
@@ -224,14 +222,19 @@ const MapComponent = ({
     }
   }, [isNavigating]);
 
+  const headingIcon = useMemo(() => {
+    if (!userPosition || userPosition.heading === null || userPosition.heading === undefined) return null;
+    return createHeadingIcon(userPosition.heading);
+  }, [userPosition]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ 
         opacity: 1,
-        // improved 3D transform for "Google Maps" feel
+        // improved 3D transform for "Google Maps" feel with fixed edge clipping
         transform: is3D 
-          ? "perspective(1200px) rotateX(60deg) scale(1.6) translateY(20%)" 
+          ? "perspective(1000px) rotateX(55deg) scale(1.8) translateY(25%)" 
           : "perspective(1000px) rotateX(0deg) scale(1) translateY(0)"
       }}
       transition={{ duration: 1.5, ease: [0.25, 0.1, 0.25, 1] }} 
@@ -287,7 +290,7 @@ const MapComponent = ({
             {/* Blue dot marker */}
             <Marker
               position={[userPosition.lat, userPosition.lng]}
-              icon={createUserIcon()}
+              icon={userDotIcon}
             >
               <Popup>
                 <div style={{ fontFamily: "serif", fontSize: "12px" }}>
@@ -296,10 +299,10 @@ const MapComponent = ({
               </Popup>
             </Marker>
             {/* Heading arrow */}
-            {userPosition.heading !== null && (
+            {headingIcon && userPosition && (
               <Marker
                 position={[userPosition.lat, userPosition.lng]}
-                icon={createHeadingIcon(userPosition.heading)}
+                icon={headingIcon}
                 interactive={false}
               />
             )}
