@@ -15,10 +15,10 @@ interface LiveSafetyBarProps {
 }
 
 function getRiskTier(score: number) {
-  if (score > 80) return { label: "DANGEROUS", color: "bg-red-600", text: "text-red-100", glow: "shadow-red-500/50", icon: "🔴", barColor: "#ef4444" };
-  if (score > 60) return { label: "RISKY", color: "bg-orange-500", text: "text-orange-100", glow: "shadow-orange-500/40", icon: "🟠", barColor: "#f97316" };
-  if (score > 40) return { label: "MODERATE", color: "bg-yellow-500", text: "text-yellow-100", glow: "shadow-yellow-500/30", icon: "🟡", barColor: "#eab308" };
-  if (score > 20) return { label: "SAFE", color: "bg-teal-500", text: "text-teal-100", glow: "shadow-teal-500/30", icon: "🟢", barColor: "#14b8a6" };
+  if (score < 20) return { label: "DANGEROUS", color: "bg-red-600", text: "text-red-100", glow: "shadow-red-500/50", icon: "🔴", barColor: "#ef4444" };
+  if (score < 40) return { label: "RISKY", color: "bg-orange-500", text: "text-orange-100", glow: "shadow-orange-500/40", icon: "🟠", barColor: "#f97316" };
+  if (score < 60) return { label: "MODERATE", color: "bg-yellow-500", text: "text-yellow-100", glow: "shadow-yellow-500/30", icon: "🟡", barColor: "#eab308" };
+  if (score < 80) return { label: "SAFE", color: "bg-teal-500", text: "text-teal-100", glow: "shadow-teal-500/30", icon: "🟢", barColor: "#14b8a6" };
   return { label: "VERY SAFE", color: "bg-emerald-500", text: "text-emerald-100", glow: "shadow-emerald-500/30", icon: "✅", barColor: "#10b981" };
 }
 

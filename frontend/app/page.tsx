@@ -117,7 +117,7 @@ export default function Dashboard() {
 
   // Voice alert when entering danger zones during live monitoring
   useEffect(() => {
-    if (liveSafetyScore !== null && liveSafetyScore > 65 && geo.lat && geo.lng) {
+    if (liveSafetyScore !== null && liveSafetyScore < 35 && geo.lat && geo.lng) {
       const now = Date.now();
       if (now - lastDangerAlertRef.current > 30000) {
         lastDangerAlertRef.current = now;
@@ -243,7 +243,7 @@ export default function Dashboard() {
     // === DANGER ZONE DETECTION ===
     const segments = route.risk_segments || [];
     for (const seg of segments) {
-      if (seg.score > 65) {
+      if (seg.score < 35) {
         const midPt = seg.path[Math.floor(seg.path.length / 2)];
         const distToSeg = haversineDistance(geo.lat, geo.lng, midPt[0], midPt[1]);
         if (distToSeg < 200) {

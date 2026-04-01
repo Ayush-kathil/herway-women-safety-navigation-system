@@ -24,6 +24,8 @@ origins = [
     "http://localhost:3001",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8000",
+    "https://herway-women-safety-navigation-syst.vercel.app",
+    "https://herway-women-safety-navigation-system.vercel.app",
     os.environ.get("FRONTEND_URL", "http://localhost:3000"),
 ]
 
@@ -187,22 +189,23 @@ def predict_safety(lat: float, long: float, hour: int, day_of_week: int = -1):
     # Combined score: ML model is PRIMARY (60%), crime density (25%), time (15%)
     risk_score = (model_score * 0.60) + (crime_factor) + (time_mod)
     risk_score = max(0, min(100, risk_score))
+    safety_score = 100 - risk_score
     
     # Determine category
-    category = "Very Safe"
-    color = "green"
-    if risk_score > 80:
-        category = "Dangerous"
-        color = "red"
-    elif risk_score > 60:
-        category = "Risky"
-        color = "orange"
-    elif risk_score > 40:
-        category = "Moderate"
-        color = "yellow"
-    elif risk_score > 20:
+    category = "Dangerous"
+    color = "red"
+    if safety_score >= 80:
+        category = "Very Safe"
+        color = "green"
+    elif safety_score >= 60:
         category = "Safe"
         color = "teal"
+    elif safety_score >= 40:
+        category = "Moderate"
+        color = "yellow"
+    elif safety_score >= 20:
+        category = "Risky"
+        color = "orange"
 
     advice = generate_advice(risk_score, hour, crime_count)
         
@@ -211,7 +214,7 @@ def predict_safety(lat: float, long: float, hour: int, day_of_week: int = -1):
         "longitude": long,
         "hour": hour,
         "day_of_week": day_of_week,
-        "safety_score": round(risk_score, 1),
+        "safety_score": round(safety_score, 1),
         "category": category,
         "zone_color": color,
         "advice": advice,
@@ -274,20 +277,28 @@ def analyze_route(request: RouteRequest):
     start = request.waypoints[0]
     end = request.waypoints[-1]
     
-    url = f"http://router.project-osrm.org/route/v1/foot/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3&steps=true"
+    urls = [
+        f"https://routing.openstreetmap.de/routed-foot/route/v1/foot/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3&steps=true",
+        f"http://router.project-osrm.org/route/v1/foot/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3&steps=true"
+    ]
     
-    try:
-        response = requests.get(url, timeout=8)
-        data = response.json()
-        
-        if data["code"] != "Ok":
-            raise Exception("OSRM API Error")
+    data = None
+    for route_url in urls:
+        try:
+            response = requests.get(route_url, timeout=5, headers={'User-Agent': 'HerWayApp/1.0'})
+            if response.status_code == 200:
+                response_data = response.json()
+                if response_data.get("code") == "Ok":
+                    data = response_data
+                    break
+        except Exception as e:
+            logger.warning(f"OSRM Routing Error for {route_url}: {e}")
+            continue
             
-        osrm_routes = data["routes"]
+    if not data or data.get("code") != "Ok":
+        return {"error": "Could not fetch route from OSRM servers. Please try again later."}
         
-    except Exception as e:
-        print(f"Routing Error: {e}")
-        return {"error": "Could not fetch route. Please check internet connection."}
+    osrm_routes = data.get("routes", [])
 
     time_mod = get_time_modifier(request.hour)
 
@@ -332,8 +343,8 @@ def analyze_route(request: RouteRequest):
         full_path = [[p[1], p[0]] for p in route_geometry]
         chunk_size = 15
         annotated_segments = []
-        total_risk = 0
-        risk_counts = 0
+        total_safety = 0
+        safety_counts = 0
         total_crimes = 0
         
         for i in range(0, len(full_path), chunk_size):
@@ -355,20 +366,22 @@ def analyze_route(request: RouteRequest):
                 time_contribution = time_mod * 15
                 
                 score = (model_score * 0.60) + crime_factor + time_contribution
-                score = max(0, min(100, score))
+                risk_score = max(0, min(100, score))
                 
-                total_risk += score
-                risk_counts += 1
+                safety_score = 100 - risk_score
+                
+                total_safety += safety_score
+                safety_counts += 1
                 
                 color = "#10b981"
-                if score > 65:
+                if safety_score < 35:
                     color = "#ef4444"
-                elif score > 35:
+                elif safety_score < 65:
                     color = "#eab308"
                 
                 annotated_segments.append({
                     "path": chunk,
-                    "score": round(score, 1),
+                    "score": round(safety_score, 1),
                     "color": color
                 })
             except Exception as e:
@@ -377,39 +390,39 @@ def analyze_route(request: RouteRequest):
                     "path": chunk, "score": 50, "color": "#eab308"
                 })
         
-        avg = total_risk / max(1, risk_counts)
-        mx = max([s["score"] for s in annotated_segments]) if annotated_segments else 0
-        return annotated_segments, avg, mx, total_crimes
+        avg = total_safety / max(1, safety_counts)
+        mn = min([s["score"] for s in annotated_segments]) if annotated_segments else 100
+        return annotated_segments, avg, mn, total_crimes
 
     scored_routes = []
     for idx, route in enumerate(osrm_routes):
         coords = route["geometry"]["coordinates"]
         duration = route.get("duration", 0)
         distance = route.get("distance", 0)
-        segments, avg, mx, crimes = score_route(coords)
+        segments, avg, mn, crimes = score_route(coords)
         steps = parse_steps(route)
         scored_routes.append({
             "route_index": idx,
             "risk_segments": segments,
             "average_safety_score": round(avg, 1),
-            "max_risk_score": round(mx, 1),
-            "is_safe": avg < 50,
+            "min_safety_score": round(mn, 1),
+            "is_safe": avg >= 50,
             "duration_min": round(duration / 60, 1),
             "distance_km": round(distance / 1000, 1),
             "total_crimes_along_route": crimes,
             "steps": steps,
         })
     
-    scored_routes.sort(key=lambda r: r["average_safety_score"])
+    scored_routes.sort(key=lambda r: r["average_safety_score"], reverse=True)
     
     safest = scored_routes[0]
     alternatives = scored_routes[1:] if len(scored_routes) > 1 else []
     
     comparison = None
     if alternatives:
-        worst_avg = max(r["average_safety_score"] for r in alternatives)
+        worst_avg = min(r["average_safety_score"] for r in alternatives)
         if worst_avg > 0:
-            pct_safer = round(((worst_avg - safest["average_safety_score"]) / worst_avg) * 100, 1)
+            pct_safer = round(((safest["average_safety_score"] - worst_avg) / worst_avg) * 100, 1)
         else:
             pct_safer = 0
         comparison = {
@@ -473,17 +486,18 @@ def get_safety_grid(lat_min: float, lat_max: float, long_min: float, long_max: f
             
             score = (float(model_score) * 0.60) + crime_factor + time_mod
             score = max(0, min(100, score))
+            safety_score = 100 - score
             
             color = "green"
-            if score > 75:
+            if safety_score < 35:
                 color = "red"
-            elif score > 40:
+            elif safety_score < 65:
                 color = "yellow"
             
             grid_data.append({
                 "lat": lat,
                 "lng": long,
-                "score": round(score, 1),
+                "score": round(safety_score, 1),
                 "color": color
             })
             

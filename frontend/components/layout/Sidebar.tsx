@@ -490,8 +490,20 @@ export default function Sidebar({
                                     {allRoutes.map((route: any, idx: number) => {
                                         // Comparison Logic
                                         const recommended = allRoutes[0];
-                                        const safetyDiff = route.average_safety_score - recommended.average_safety_score;
                                         const timeDiff = recommended.duration_min - route.duration_min;
+                                        
+                                        const isSelected = selectedRouteIdx === idx;
+                                        const score = Math.round(route.average_safety_score);
+                                        const isVerySafe = score >= 80;
+                                        const isSafe = score >= 60 && score < 80;
+                                        const isModerate = score >= 40 && score < 60;
+                                        const isRisky = score < 40;
+                                        
+                                        let scoreColor = "text-red-500";
+                                        if (isVerySafe) scoreColor = "text-emerald-500";
+                                        else if (isSafe) scoreColor = "text-teal-500";
+                                        else if (isModerate) scoreColor = "text-yellow-500";
+                                        else if (score >= 20) scoreColor = "text-orange-500";
                                         
                                         return (
                                         <motion.button
@@ -499,66 +511,82 @@ export default function Sidebar({
                                             variants={itemVariants}
                                             onClick={() => setSelectedRouteIdx(idx)}
                                             className={cn(
-                                                "w-full text-left transition-all group relative overflow-hidden rounded-xl",
-                                                selectedRouteIdx === idx
-                                                    ? "border-2 border-black dark:border-white p-4 bg-white dark:bg-black scale-[1.02] shadow-xl z-10"
-                                                    : "border border-zinc-200 dark:border-zinc-800 p-4 hover:border-zinc-400 bg-zinc-50 dark:bg-zinc-900/50 grayscale-[0.5] hover:grayscale-0"
+                                                "w-full text-left transition-all duration-300 group relative overflow-hidden rounded-2xl",
+                                                isSelected
+                                                    ? "border border-black/10 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(255,255,255,0.05)] bg-white dark:bg-zinc-900/80 backdrop-blur-xl scale-[1.02]"
+                                                    : "border border-zinc-200/50 dark:border-zinc-800/50 p-4 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/30 hover:bg-white dark:hover:bg-zinc-900/50 backdrop-blur-sm"
                                             )}
                                         >
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    {idx === 0 ? (
-                                                        <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-black text-white dark:bg-white dark:text-black rounded-full">
-                                                            Safest
-                                                        </span>
-                                                    ) : (
-                                                        <>
-                                                            {safetyDiff > 5 && (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full flex items-center gap-1">
-                                                                    <ShieldCheck className="w-3 h-3" /> Safer (+{Math.round(safetyDiff)})
-                                                                </span>
-                                                            )}
-                                                            {timeDiff > 2 && (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full flex items-center gap-1">
-                                                                    <TrendingDown className="w-3 h-3" /> Faster (-{Math.round(timeDiff)}m)
-                                                                </span>
-                                                            )}
-                                                            {!safetyDiff && !timeDiff && (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border border-zinc-300 text-zinc-500 rounded-full">
-                                                                    Alternative
-                                                                </span>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                    <span className="text-[10px] font-serif text-zinc-500">
-                                                        {route.distance_km} km
-                                                    </span>
+                                            {/* Selection Gradient Background */}
+                                            {isSelected && (
+                                                <div className={cn(
+                                                    "absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none transition-colors duration-500",
+                                                    isVerySafe ? "bg-emerald-500" : isSafe ? "bg-teal-500" : isModerate ? "bg-yellow-500" : "bg-red-500"
+                                                )} />
+                                            )}
+                                            
+                                            <div className={cn("flex flex-col h-full", isSelected ? "p-4" : "")}>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        {idx === 0 ? (
+                                                            <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-md shadow-sm">
+                                                                Safest Choice
+                                                            </span>
+                                                        ) : (
+                                                            <>
+                                                                {timeDiff > 2 ? (
+                                                                    <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-md border border-amber-200/50 dark:border-amber-800/50 flex items-center gap-1 shadow-sm">
+                                                                        <TrendingDown className="w-3 h-3" /> Faster (-{Math.round(timeDiff)}m)
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="px-2 py-1 text-[9px] font-black uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded-md border border-zinc-200/50 dark:border-zinc-700/50">
+                                                                        Alternative
+                                                                    </span>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800/50 px-2 py-1 rounded-md">
+                                                            <MapPin className="w-3 h-3" /> {route.distance_km} km
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="text-xs font-bold font-serif text-zinc-900 dark:text-white">
-                                                    {route.duration_min} min
+                                                
+                                                <div className="flex items-end justify-between mt-auto">
+                                                     <div className="flex flex-col">
+                                                         <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-1">Safety Score</span>
+                                                         <div className="flex items-baseline gap-1.5">
+                                                             <span className={cn(
+                                                                 "text-4xl font-serif font-black leading-none tracking-tight transition-colors duration-500",
+                                                                 isSelected ? scoreColor : "text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-400"
+                                                             )}>
+                                                                 {score}
+                                                             </span>
+                                                             <span className="text-xs font-bold text-zinc-400">/ 100</span>
+                                                         </div>
+                                                     </div>
+                                                     
+                                                     <div className="flex flex-col items-end gap-1">
+                                                         <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Est. Time</div>
+                                                         <div className={cn(
+                                                             "text-xl font-serif font-bold transition-colors duration-300",
+                                                             isSelected ? "text-black dark:text-white" : "text-zinc-600 dark:text-zinc-400"
+                                                         )}>
+                                                             {route.duration_min} <span className="text-sm">min</span>
+                                                         </div>
+                                                     </div>
                                                 </div>
                                             </div>
                                             
-                                            <div className="flex items-end justify-between">
-                                                 <div className="flex flex-col">
-                                                     <span className="text-[9px] uppercase tracking-widest text-zinc-400 mb-0.5">Safety Score</span>
-                                                     <div className="flex items-baseline gap-1">
-                                                         <span className={cn(
-                                                             "text-3xl font-serif font-black leading-none",
-                                                             selectedRouteIdx === idx ? "text-black dark:text-white" : "text-zinc-600 dark:text-zinc-400",
-                                                             route.average_safety_score > 80 ? "text-emerald-600 dark:text-emerald-400" : 
-                                                             route.average_safety_score > 60 ? "text-amber-600 dark:text-amber-400" : 
-                                                             "text-red-600 dark:text-red-400"
-                                                         )}>
-                                                             {Math.round(route.average_safety_score)}
-                                                         </span>
-                                                         <span className="text-[10px] font-bold text-zinc-400">/ 100</span>
-                                                     </div>
-                                                 </div>
-                                                 {selectedRouteIdx === idx && (
-                                                     <ChevronRight className="w-5 h-5 text-black dark:text-white animate-pulse" />
-                                                 )}
-                                            </div>
+                                            {/* Active Indicator Line */}
+                                            {isSelected && (
+                                              <motion.div 
+                                                layoutId="activeRouteLine"
+                                                className={cn(
+                                                    "absolute left-0 top-0 bottom-0 w-1",
+                                                    isVerySafe ? "bg-emerald-500" : isSafe ? "bg-teal-500" : isModerate ? "bg-yellow-500" : "bg-red-500"
+                                                )}
+                                              />
+                                            )}
                                         </motion.button>
                                     );})}
                                 </motion.div>

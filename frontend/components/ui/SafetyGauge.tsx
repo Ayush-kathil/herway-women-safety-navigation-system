@@ -16,11 +16,10 @@ export default function SafetyGauge({ score, size = 120, strokeWidth = 10, class
   const progress = Math.min(100, Math.max(0, score));
   const offset = circumference - (progress / 100) * circumference;
   
-  // Color logic
-  let color = "text-emerald-500";
-  if (score > 40) color = "text-yellow-500";
-  if (score > 60) color = "text-orange-500";
-  if (score > 80) color = "text-red-600";
+  let color = "text-red-600";
+  if (score >= 40) color = "text-orange-500";
+  if (score >= 60) color = "text-yellow-500";
+  if (score >= 80) color = "text-emerald-500";
   
   // Track color (background ring)
   const trackColor = "text-zinc-100 dark:text-zinc-800";
