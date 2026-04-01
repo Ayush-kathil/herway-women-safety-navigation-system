@@ -233,15 +233,22 @@ const MapComponent = ({
       initial={{ opacity: 0 }}
       animate={{ 
         opacity: 1,
-        // improved 3D transform for "Google Maps" feel with fixed edge clipping
         transform: is3D 
-          ? "perspective(1000px) rotateX(55deg) scale(1.8) translateY(25%)" 
-          : "perspective(1000px) rotateX(0deg) scale(1) translateY(0)"
+          ? "perspective(1200px) rotateX(60deg) scale(1.0) translateY(15%)" 
+          : "perspective(1200px) rotateX(0deg) scale(1) translateY(0)"
       }}
       transition={{ duration: 1.5, ease: [0.25, 0.1, 0.25, 1] }} 
-      className="w-full h-full rounded-2xl overflow-hidden glass shadow-2xl relative z-0 origin-bottom"
+      className="w-full h-full rounded-2xl overflow-hidden glass shadow-2xl relative z-0"
+      style={{ transformOrigin: "center 70%" }}
     >
-      <MapContainer center={center} zoom={zoom} scrollWheelZoom={true} zoomControl={false} className="w-full h-full">
+      {/* 
+        ENGINEERING FIX: Oversized internal map wrapper (200%). 
+        This is the "trick" to perfect 3D Leaflet. It forces Leaflet to load ultra-high-res 
+        tiles far outside the visible viewport, so when the CSS tilts and squeezes the image backwards, 
+        there are no missing gray tiles at the horizon! 
+      */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200vw] h-[200vh]">
+        <MapContainer center={center} zoom={zoom} scrollWheelZoom={true} zoomControl={false} className="w-full h-full">
         <TileLayer
           key={mapTheme}
           attribution={tile.attribution}
@@ -426,6 +433,7 @@ const MapComponent = ({
           </Marker>
         ))}
       </MapContainer>
+      </div>
       
       {/* 3D Toggle Button */}
       <div className="absolute top-6 right-6 z-[1000] flex flex-col gap-2">

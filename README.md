@@ -1,51 +1,63 @@
-# 🛡️ HerWay: Advanced Predictive Women's Safety Navigation System
-
-<br />
 <div align="center">
-  <img src="frontend/public/logo.png" alt="HerWay Logo" width="200" />
+  <img src="frontend/public/logo.png" alt="HerWay Logo" width="250" />
+  <h1>HerWay: Predictive Safety Navigation System</h1>
+  <p><strong>Advanced Machine Learning Routing Engine • Next.js 14 • Spatial APIs</strong></p>
+
+  [![Status: Active](https://img.shields.io/badge/Status-Active-success.svg)](https://github.com/Ayush-kathil/herway-women-safety-navigation-system)
+  [![Framework: Next.js](https://img.shields.io/badge/Framework-Next.js_14-black)](https://nextjs.org/)
+  [![Backend: FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
+  [![ML: Scikit-Learn](https://img.shields.io/badge/ML-Scikit_Learn-orange?logo=scikitlearn)](https://scikit-learn.org/)
 </div>
+
 <br />
 
-**HerWay** reorients the fundamental logistics of map routing and navigation. Rather than focusing heavily on traffic alleviation or shortest-path efficiency, HerWay introduces **Safety-First Routing**, utilizing contextually expanded spatial AI to build safer walking paths for women spanning urban and suburban geographies.
+> **Project Lead**: Ayush Kathil (Donay)  
+> **Mission**: Re-engineering urban cartography. Instead of optimizing solely for vehicular speed, **HerWay** evaluates global routing arrays strictly through the lens of physiological safety, dynamically recalculating navigation pathways based on real-time socio-environmental matrices.
 
-## 🌟 Architecture & Core Innovation
+---
 
-HerWay fuses real-time spatial pathfinding engines with offline predictive modelling using `scikit-learn`.
+## 🌟 Architectural Features
 
-### 🔮 Spatial Risk Prediction Engine
+### 🧠 Pre-Trained AI Context Engine
+We departed from standard geographic heatmap visualizations in favor of an active, predictive neural approach:
+*   **Vectorized Data Sciences**: Our core datasets are cleansed and expanded utilizing synthetic Gaussian jitter scripts to prevent ML overfitting on strict pinpoint anomalies.
+*   **Random Forest Modeling**: Predicts localized coordinate safety by dynamically calculating 7 continuous variables: `Latitude`, `Longitude`, `Time of Day`, `Day of the Week`, `Lighting Conditions`, `Crowd Density`, and `Emergency Responder Proximity`.
+*   *(See `MODEL_TRAINING_OVERVIEW.md` or `PROJECT_DESCRIPTION.md` for a comprehensive technical breakdown).*
 
-We departed from static coordinate heatmaps into dynamic, context-aware AI:
+### 🗺️ Extreme UI/UX Topologies
+*   **Perspective Rendering Engine (3D)**: Standard OpenStreetMap raster systems are fundamentally flat. We engineered a dual-layer hyper-scaled rendering container that tricks `react-leaflet` into fetching 250% horizon bounds, allowing us to tilt the entire canvas vector 60° without tile clipping. 
+*   **JIT Framer Motion Layouts**: Component orchestration utilizes strict React micro-animations offering a highly viscous, polished "Black & White Farm" aesthetic. 
 
-*   **Deep Contextual Embeddings**: The model doesn't just read where you are; it infers the environmental context. It computes synthetic **Ambient Lighting** scales, behavioral **Crowd Density** gradients, and calculates Haversine proximity penalties towards emergency and police responder hubs.
-*   **GridSearchCV Optimization**: The backend runs an offline parameterized **Random Forest Regressor** strictly tuned via k-fold cross-validation grid search to isolate optimal hyper-dimensional safety heuristics, significantly avoiding overfitting across geographic anomalies.
-*   **Dataset Augmentation**: Utilizing spatial and chronological jitter functions, we've generalized raw local datasets into dense spatial domains to prevent localized bias and to map continuous geographical variance reliably.
+## 🔌 System Stack
 
-### 🧭 Ultra-Refined Client Rendering
+| Subsystem | Technologies Used |
+| :--- | :--- |
+| **Frontend Renderer** | React 18, Next.js 14 App Router, Tailwind CSS, Framer Motion |
+| **Route/Map Engine** | React-Leaflet, OpenStreetMap Tile API, OSRM Polyline Servers |
+| **Microservices API** | Python, FastAPI, Uvicorn, Pydantic |
+| **Deep Training Core** | Pandas, Numpy, Scikit-Learn (GridSearchCV, RandomForest) |
 
-*   **3D Adaptive Perspective**: Transitions the map from native flat top-down cartography to a 60° angle "Driver's Perspective", fluidly adjusting via interpolated zoom frames as users track their progress turn-by-turn.
-*   **Stochastic UI Mechanics**: Leverages pure React functional components wrapped with `framer-motion` layout orchestrators for premium micro-animations—delivering an interface that looks professional, highly reactive, and tactile.
+## 🚀 Quick Start / Deployment
 
-## 🚀 Technical Stack Breakdown
-
-- **Frontend Core**: Next.js 14, React 18, Server Components
-- **Styling Architecture**: Tailwind CSS (JIT compiling), Custom UI library mimicking clean Scandinavian Farm aesthetics (monochrome, high-viscosity contrasts, smooth pill bounds).
-- **Cartographic Engines**: Leaflet.js binding with OpenStreetMap Tile layers, routing generated via OSRM.
-- **Backend & ML Pipelining**: FastAPI (async event loops), Scikit-Learn (RandomForestRegressor, GridSearchCV, multi-metric evaluations), Pandas, Numpy, Joblib caching.
-
-## 📦 Getting Started
-
-Please see [`DEPLOYMENT.md`](DEPLOYMENT.md) for production-level server configurations.
-
-### Local Windows Development
-Bootstrapping the environment is containerized within our quick-launch script:
+### 1. Unified Launch (Windows)
+We provide a threaded `.bat` executable to dual-boot the Frontend compiler (`:3000`) and the Python ASGI server (`:8000`) concurrently.
 ```bash
 .\start_app.bat
 ```
-*(This triggers both the Node server on `:3000` and the Uvicorn ASGI on `:8000`)*
 
-## 📚 Advanced Documentation
-
-See [`PROJECT_DESCRIPTION.md`](PROJECT_DESCRIPTION.md) for our technical whitepaper on the system's underlying routing methodologies, dataset creation principles, and internal safety mechanics.
+### 2. Manual Subsystems
+**API Engine**:
+```bash
+cd backend
+pip install -r requirements.txt
+python main.py
+```
+**Client Interface**:
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ---
-*Built to re-engineer safe urban mobility.*
+*Developed under explicit focus on systemic reliability, algorithmic transparency, and flawless runtime execution. Designed for safer cities.*
