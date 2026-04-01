@@ -215,12 +215,13 @@ const MapComponent = ({
   const tile = TILE_LAYERS[mapTheme];
   const [is3D, setIs3D] = useState(false);
 
-  // Auto-enable 3D mode when navigation starts
-  useEffect(() => {
+  const [prevIsNavigating, setPrevIsNavigating] = useState(isNavigating);
+  if (isNavigating !== prevIsNavigating) {
+    setPrevIsNavigating(isNavigating);
     if (isNavigating) {
       setIs3D(true);
     }
-  }, [isNavigating]);
+  }
 
   const headingIcon = useMemo(() => {
     if (!userPosition || userPosition.heading === null || userPosition.heading === undefined) return null;
