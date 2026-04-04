@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, AlertTriangle, EyeOff, ShieldAlert, Car, Siren, LightbulbOff } from "lucide-react";
+import { X, AlertTriangle, ShieldAlert, Car, LightbulbOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface IncidentReportModalProps {

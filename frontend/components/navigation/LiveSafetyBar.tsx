@@ -2,16 +2,22 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, ShieldAlert, ShieldCheck, Volume2, ChevronUp, ChevronDown, MapPin, AlertTriangle, Activity, Lightbulb, Users } from "lucide-react";
+import { ChevronUp, ChevronDown, MapPin, Activity, Lightbulb, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SafetyGauge from "@/components/ui/SafetyGauge";
+
+interface SafetyCheckResult {
+  safety_score?: number;
+  advice?: string;
+  [key: string]: unknown;
+}
 
 interface LiveSafetyBarProps {
   riskScore: number | null;
   isNavigating: boolean;
   userLat: number | null;
   userLng: number | null;
-  onCheckSafety?: (lat: number, lng: number) => Promise<any>;
+  onCheckSafety?: (lat: number, lng: number) => Promise<SafetyCheckResult>;
 }
 
 function getRiskTier(score: number) {
@@ -22,16 +28,12 @@ function getRiskTier(score: number) {
   return { label: "VERY SAFE", color: "bg-emerald-500", text: "text-emerald-100", glow: "shadow-emerald-500/30", icon: "✅", barColor: "#10b981" };
 }
 
-export default function LiveSafetyBar({ riskScore, isNavigating, userLat, userLng, onCheckSafety }: LiveSafetyBarProps) {
+export default function LiveSafetyBar({ riskScore, userLat, userLng, onCheckSafety }: LiveSafetyBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [liveScore, setLiveScore] = useState<number | null>(riskScore);
-  const [liveData, setLiveData] = useState<any>(null);
+  const [liveData, setLiveData] = useState<SafetyCheckResult | null>(null);
   const [checking, setChecking] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (riskScore !== null) setLiveScore(riskScore);
-  }, [riskScore]);
 
   // Continuous safety checks every 10 seconds when GPS is active
   useEffect(() => {
@@ -54,11 +56,12 @@ export default function LiveSafetyBar({ riskScore, isNavigating, userLat, userLn
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [userLat, userLng, onCheckSafety]);
 
-  if (liveScore === null && !userLat) return null;
+  // Derive the display score from riskScore prop or live data
+  const derivedScore = liveScore ?? riskScore;
+  if (derivedScore === null && !userLat) return null;
 
-  const score = liveScore ?? 0;
+  const score = derivedScore ?? 0;
   const tier = getRiskTier(score);
-  const percentage = Math.min(100, Math.max(0, score));
 
   return (
     <AnimatePresence>

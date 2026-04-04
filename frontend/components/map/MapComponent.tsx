@@ -4,22 +4,12 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import Map, { Source, Layer, Marker, MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { SafePlace } from "@/lib/types";
+import { SafePlace, RouteStats } from "@/lib/types";
 
 interface RouteSegment {
   path: number[][]; // [lat, lng] array
   score: number;
   color: string;
-}
-
-interface RouteData {
-  route_index: number;
-  risk_segments: RouteSegment[];
-  average_safety_score: number;
-  max_risk_score: number;
-  is_safe: boolean;
-  duration_min: number;
-  distance_km: number;
 }
 
 interface CrimeHotspot {
@@ -40,7 +30,7 @@ interface MapProps {
   routeSegments?: RouteSegment[];
   crimeHotspots?: CrimeHotspot[];
   safePlaces?: SafePlace[];
-  allRoutes?: RouteData[];
+  allRoutes?: RouteStats[];
   selectedRouteIdx?: number;
   userPosition?: { lat: number; lng: number; heading: number | null } | null;
   isNavigating?: boolean;
@@ -64,15 +54,8 @@ function toGeoJSONLine(path: number[][]) {
 
 export default function MapComponent(props: MapProps) {
   const mapRef = useRef<MapRef>(null);
-  const [is3D, setIs3D] = useState(false);
+  const is3D = Boolean(props.isNavigating);
   const [selectedPopup, setSelectedPopup] = useState<{type: 'safe', data: SafePlace} | {type: 'crime', data: CrimeHotspot} | null>(null);
-
-  // Auto-enable 3D when navigation starts
-  const [prevIsNavigating, setPrevIsNavigating] = useState(props.isNavigating);
-  if (props.isNavigating !== prevIsNavigating) {
-    setPrevIsNavigating(props.isNavigating);
-    if (props.isNavigating) setIs3D(true);
-  }
 
   // Handle 3D transitions natively through WebGL Pitch/Bearing! 
   // This solves the CSS clipping perfectly.
@@ -138,6 +121,22 @@ export default function MapComponent(props: MapProps) {
     };
   }, [props.mapTheme]);
 
+  const gridGeoJson = useMemo(() => ({
+    type: "FeatureCollection" as const,
+    features: (props.gridData || []).map((cell, index) => ({
+      type: "Feature" as const,
+      properties: {
+        id: index,
+        score: cell.score,
+        color: cell.color,
+      },
+      geometry: {
+        type: "Point" as const,
+        coordinates: [cell.lng, cell.lat],
+      },
+    })),
+  }), [props.gridData]);
+
   const hasMultipleRoutes = (props.allRoutes?.length || 0) > 1;
   const hasAnyRoute = (props.allRoutes?.length || 0) > 0 || (props.routeSegments?.length || 0) > 0;
 
@@ -161,6 +160,27 @@ export default function MapComponent(props: MapProps) {
         maxPitch={85}
         interactiveLayerIds={['crime-hotspots']}
       >
+        {(props.gridData || []).length > 0 && (
+          <Source id="safety-grid" type="geojson" data={gridGeoJson}>
+            <Layer
+              id="safety-grid-cells"
+              type="circle"
+              paint={{
+                "circle-radius": ["interpolate", ["linear"], ["get", "score"], 0, 12, 100, 22],
+                "circle-color": [
+                  "case",
+                  ["==", ["get", "color"], "red"], "#ef4444",
+                  ["==", ["get", "color"], "yellow"], "#eab308",
+                  "#10b981",
+                ],
+                "circle-opacity": 0.18,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 0.4,
+              }}
+            />
+          </Source>
+        )}
+
         {/* Crime Hotspots Heatmap Circles */}
         {(props.crimeHotspots || []).map((spot, idx) => (
            <Marker key={`crime-${idx}`} longitude={spot.lng} latitude={spot.lat} anchor="center">
@@ -185,19 +205,19 @@ export default function MapComponent(props: MapProps) {
                    <Layer 
                      id={`layer-alt-${rIdx}-${sIdx}`}
                      type="line"
-                     paint={{ "line-color": "#a1a1aa", "line-width": 4, "line-opacity": 0.5, "line-dasharray": [2, 2] }}
+                     paint={{ "line-color": "#ef4444", "line-width": 4, "line-opacity": 0.5, "line-dasharray": [2, 2] }}
                    />
                  </Source>
                ));
            } else {
-               // Safest recommended route (often overridden perfectly Green by backend)
+               // Safest recommended route explicit green
                return route.risk_segments?.map((seg, sIdx) => (
                  <Source key={`main-${rIdx}-${sIdx}`} type="geojson" data={toGeoJSONLine(seg.path)}>
                    <Layer 
                      id={`layer-main-${rIdx}-${sIdx}`}
                      type="line"
                      layout={{ "line-join": "round", "line-cap": "round" }}
-                     paint={{ "line-color": seg.color, "line-width": 8, "line-opacity": 0.9 }}
+                     paint={{ "line-color": "#10b981", "line-width": 8, "line-opacity": 0.9 }}
                    />
                  </Source>
                ));
@@ -211,7 +231,7 @@ export default function MapComponent(props: MapProps) {
                id={`layer-single-${sIdx}`}
                type="line"
                layout={{ "line-join": "round", "line-cap": "round" }}
-               paint={{ "line-color": seg.color, "line-width": 8, "line-opacity": 0.9 }}
+               paint={{ "line-color": "#10b981", "line-width": 8, "line-opacity": 0.9 }}
              />
            </Source>
         ))}

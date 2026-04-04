@@ -115,7 +115,7 @@ export default function ClockPicker({ hour, onChange }: ClockPickerProps) {
                   <span className={cn(
                     "text-xl font-serif font-bold rotate-[calc(-1*var(--rot))]", 
                     isSelected ? "text-black dark:text-white" : "text-zinc-400"
-                  )} style={{ "--rot": `${angle}deg` } as any}>
+                  )} style={{ "--rot": `${angle}deg` } as React.CSSProperties}>
                     {h}
                   </span>
                 </div>

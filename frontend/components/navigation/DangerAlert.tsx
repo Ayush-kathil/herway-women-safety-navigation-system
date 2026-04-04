@@ -1,8 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldAlert, AlertTriangle, X, Phone, MapPin, Share2, Shield } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ShieldAlert, AlertTriangle, MapPin, Shield } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 
 interface DangerAlertProps {
   visible: boolean;
@@ -29,14 +29,19 @@ const DangerAlert = ({ visible, riskScore, advice, crimeCount, areaName, onDismi
     }
   }, [visible]);
 
-  // Auto-dismiss countdown
+  // Auto-dismiss countdown — resets when component becomes visible
+  const countdownRef = useRef(15);
   useEffect(() => {
-    if (!visible) { setCountdown(15); return; }
+    if (!visible) return;
+    // Reset via ref (avoids synchronous setState)
+    countdownRef.current = 15;
     const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) { onDismiss(); return 15; }
-        return prev - 1;
-      });
+      countdownRef.current -= 1;
+      if (countdownRef.current <= 0) {
+        countdownRef.current = 15;
+        onDismiss();
+      }
+      setCountdown(countdownRef.current);
     }, 1000);
     return () => clearInterval(timer);
   }, [visible, onDismiss]);

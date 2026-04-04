@@ -75,6 +75,7 @@ CRIME_CSV = os.path.join(BASE_DIR, "data.csv")
 crime_df = None
 crime_lats = None
 crime_lngs = None
+crime_hours = None
 try:
     raw = pd.read_csv(CRIME_CSV)
     def parse_hour(ts):
@@ -96,6 +97,7 @@ try:
     # Pre-compute NumPy arrays for vectorized distance calculations
     crime_lats = np.radians(crime_df["latitude"].values)
     crime_lngs = np.radians(crime_df["longitude"].values)
+    crime_hours = crime_df["crime_hour"].values.astype(int)
     logger.info(f"Crime Data Loaded: {len(crime_df)} records (vectorized)")
 except Exception as e:
     logger.warning(f"Could not load crime data: {e}")
@@ -140,25 +142,111 @@ def get_time_modifier(hour):
         return 0.8
 
 def get_lighting(hour):
-    if 7 <= hour <= 17: return np.random.uniform(0.8, 1.0)
-    if hour in [6, 18]: return np.random.uniform(0.4, 0.7)
-    return np.random.uniform(0.0, 0.3)
+    if 7 <= hour <= 17:
+        return 0.92
+    if hour in [6, 18]:
+        return 0.58
+    if 5 <= hour <= 19:
+        return 0.72
+    return 0.18
 
 def get_crowd(hour):
-    if 9 <= hour <= 20: return np.random.uniform(0.5, 1.0)
-    if 21 <= hour <= 23: return np.random.uniform(0.2, 0.6)
-    return np.random.uniform(0.0, 0.2)
+    if 9 <= hour <= 20:
+        return 0.78
+    if 21 <= hour <= 23:
+        return 0.35
+    return 0.12
 
-# Simulated police hubs around Indore center
+# Fixed police hubs around Indore center. Keeping these deterministic makes scoring stable.
 lat_center, lon_center = 22.7196, 75.8577
 police_hubs = [
-    (lat_center + np.random.normal(0, 0.02), lon_center + np.random.normal(0, 0.02))
-    for _ in range(5)
+    (lat_center + 0.018, lon_center - 0.014),
+    (lat_center - 0.016, lon_center + 0.012),
+    (lat_center + 0.008, lon_center + 0.021),
+    (lat_center - 0.021, lon_center - 0.010),
+    (lat_center + 0.002, lon_center - 0.026),
 ]
 
 def min_distance_to_police(lat, lon):
     distances = [np.sqrt((lat - p[0])**2 + (lon - p[1])**2) * 111.0 for p in police_hubs]
-    return abs(min(distances) + np.random.normal(0, 0.5))
+    return float(min(distances))
+
+
+ROAD_MAIN_KEYWORDS = (
+    "main road",
+    "highway",
+    "expressway",
+    "arterial",
+    "boulevard",
+    "avenue",
+    "ring road",
+    "bypass",
+    "national highway",
+    "state highway",
+    "nh ",
+    "sh ",
+    "road",
+)
+
+ROAD_INTERNAL_KEYWORDS = (
+    "lane",
+    "gully",
+    "gali",
+    "alley",
+    "service road",
+    "service lane",
+    "internal road",
+    "residential",
+    "private",
+    "cul-de-sac",
+    "dead end",
+    "footway",
+    "path",
+    "track",
+    "stairs",
+    "parking aisle",
+    "access road",
+)
+
+
+def _road_style_score(text: str) -> float:
+    normalized = (text or "").lower()
+    score = 50.0
+    if any(keyword in normalized for keyword in ROAD_MAIN_KEYWORDS):
+        score += 18.0
+    if any(keyword in normalized for keyword in ("main road", "highway", "expressway", "arterial", "boulevard", "avenue", "ring road", "bypass")):
+        score += 10.0
+    if any(keyword in normalized for keyword in ROAD_INTERNAL_KEYWORDS):
+        score -= 28.0
+    if any(keyword in normalized for keyword in ("service road", "internal", "residential", "access road")):
+        score -= 10.0
+    return float(max(0.0, min(100.0, score)))
+
+
+def derive_route_road_preference(route_steps):
+    if not route_steps:
+        return 50.0, "Balanced roads", 0.0
+
+    scores = []
+    main_road_steps = 0
+    for step in route_steps:
+        road_text = f"{step.get('road_name', '')} {step.get('instruction', '')} {step.get('maneuver', '')}"
+        score = _road_style_score(road_text)
+        scores.append(score)
+        if score >= 65:
+            main_road_steps += 1
+
+    avg_score = float(sum(scores) / len(scores))
+    main_road_share = float(main_road_steps / len(scores))
+
+    if avg_score >= 72:
+        label = "Main-road friendly"
+    elif avg_score >= 55:
+        label = "Balanced roads"
+    else:
+        label = "Lane-heavy"
+
+    return round(avg_score, 1), label, round(main_road_share, 2)
 
 
 def generate_advice(risk_score, hour, crime_count):
@@ -302,26 +390,35 @@ def predict_safety(lat: float, long: float, hour: int, day_of_week: int = -1):
 def get_crime_hotspots(lat: float, lng: float, radius: float = 2000, hour: int = -1):
     if crime_df is None:
         return []
-    
+
+    if crime_lats is None or crime_lngs is None or crime_hours is None:
+        return []
+
+    lat_r = math.radians(lat)
+    lng_r = math.radians(lng)
+    dlat = crime_lats - lat_r
+    dlng = crime_lngs - lng_r
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat_r) * np.cos(crime_lats) * np.sin(dlng / 2) ** 2
+    distances = 6371000 * 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    candidate_indexes = np.where(distances <= radius)[0]
+
     nearby = []
-    for _, row in crime_df.iterrows():
-        dist = haversine(lat, lng, row["latitude"], row["longitude"])
-        if dist <= radius:
-            crime_hr = int(row["crime_hour"])
-            relevance = 1.0
-            if hour >= 0:
-                diff = min(abs(crime_hr - hour), 24 - abs(crime_hr - hour))
-                if diff > 4:
-                    continue
-                relevance = max(0.3, 1.0 - (diff * 0.2))
-            
-            nearby.append({
-                "lat": float(row["latitude"]),
-                "lng": float(row["longitude"]),
-                "hour": crime_hr,
-                "relevance": round(relevance, 2)
-            })
-    
+    for idx in candidate_indexes:
+        crime_hr = int(crime_hours[idx])
+        relevance = 1.0
+        if hour >= 0:
+            diff = min(abs(crime_hr - hour), 24 - abs(crime_hr - hour))
+            if diff > 4:
+                continue
+            relevance = max(0.3, 1.0 - (diff * 0.2))
+
+        nearby.append({
+            "lat": float(crime_df.iloc[idx]["latitude"]),
+            "lng": float(crime_df.iloc[idx]["longitude"]),
+            "hour": crime_hr,
+            "relevance": round(relevance, 2)
+        })
+
     seen = set()
     unique = []
     for p in nearby:
@@ -382,45 +479,51 @@ def analyze_route(request: RouteRequest):
         for leg in route_obj.get("legs", []):
             for step in leg.get("steps", []):
                 maneuver = step.get("maneuver", {})
-                instruction = step.get("name", "")
+                road_name = step.get("name", "")
                 modifier = maneuver.get("modifier", "")
                 m_type = maneuver.get("type", "")
                 loc = maneuver.get("location", [0, 0])
                 
                 if m_type == "depart":
-                    text = f"Head {modifier} on {instruction}" if modifier else f"Start on {instruction or 'road'}"
+                    text = f"Head {modifier} on {road_name}" if modifier else f"Start on {road_name or 'road'}"
                 elif m_type == "arrive":
                     text = "You have arrived at your destination"
                 elif m_type == "turn":
-                    text = f"Turn {modifier} onto {instruction}" if instruction else f"Turn {modifier}"
+                    text = f"Turn {modifier} onto {road_name}" if road_name else f"Turn {modifier}"
                 elif m_type == "fork":
-                    text = f"Take the {modifier} fork onto {instruction}" if instruction else f"Take the {modifier} fork"
+                    text = f"Take the {modifier} fork onto {road_name}" if road_name else f"Take the {modifier} fork"
                 elif m_type == "roundabout":
-                    text = f"Enter roundabout, exit onto {instruction}" if instruction else "Enter roundabout"
+                    text = f"Enter roundabout, exit onto {road_name}" if road_name else "Enter roundabout"
                 elif m_type == "merge":
-                    text = f"Merge {modifier} onto {instruction}" if instruction else f"Merge {modifier}"
+                    text = f"Merge {modifier} onto {road_name}" if road_name else f"Merge {modifier}"
                 elif m_type in ("end of road", "end_of_road"):
-                    text = f"At end of road, turn {modifier} onto {instruction}" if instruction else f"At end of road, turn {modifier}"
+                    text = f"At end of road, turn {modifier} onto {road_name}" if road_name else f"At end of road, turn {modifier}"
                 elif m_type == "new name":
-                    text = f"Continue onto {instruction}" if instruction else "Continue straight"
+                    text = f"Continue onto {road_name}" if road_name else "Continue straight"
                 else:
-                    text = f"Continue on {instruction}" if instruction else "Continue straight"
+                    text = f"Continue on {road_name}" if road_name else "Continue straight"
                 
                 steps_out.append({
                     "instruction": text,
                     "distance_m": round(step.get("distance", 0)),
                     "maneuver": f"{m_type}-{modifier}" if modifier else m_type,
                     "location": [loc[1], loc[0]],
+                    "road_name": road_name,
                 })
         return steps_out
 
-    def score_route(route_geometry):
+    def score_route(route_geometry, route_steps):
         full_path = [[p[1], p[0]] for p in route_geometry]
         chunk_size = 15
         annotated_segments = []
         total_safety = 0
         safety_counts = 0
         total_crimes = 0
+        road_preference_score, road_preference_label, main_road_share = derive_route_road_preference(route_steps)
+        road_bias_penalty = max(0.0, (100.0 - road_preference_score) * 0.12)
+
+        chunk_inputs = []
+        chunk_meta = []
         
         for i in range(0, len(full_path), chunk_size):
             chunk = full_path[i : i + chunk_size + 1]
@@ -429,21 +532,29 @@ def analyze_route(request: RouteRequest):
             
             mid_point = chunk[len(chunk)//2]
             lat, long = mid_point
-            
+
+            chunk_inputs.append([lat, long, request.hour, day, get_lighting(request.hour), get_crowd(request.hour), min_distance_to_police(lat, long)])
+            chunk_meta.append((chunk, lat, long))
+
+        if not chunk_inputs:
+            return [], 100.0, 100.0, 0, road_preference_score, road_preference_label, main_road_share
+
+        try:
+            predictions = model.predict(chunk_inputs)
+        except Exception as e:
+            logger.warning(f"Route batch prediction failed: {e}")
+            predictions = [50.0] * len(chunk_inputs)
+
+        for (chunk, lat, long), model_prediction in zip(chunk_meta, predictions):
             try:
-                inputs = [[lat, long, request.hour, day, get_lighting(request.hour), get_crowd(request.hour), min_distance_to_police(lat, long)]]
-                pred = model.predict(inputs)
-                model_score = float(pred[0])
-                
+                model_score = float(model_prediction)
                 crime_count = crime_density_near(lat, long, 800)
                 total_crimes += crime_count
                 crime_factor = min(crime_count * 3, 25)
-                
                 time_contribution = time_mod * 15
                 
-                score = (model_score * 0.60) + crime_factor + time_contribution
+                score = (model_score * 0.55) + crime_factor + time_contribution + road_bias_penalty
                 risk_score = max(0, min(100, score))
-                
                 safety_score = 100 - risk_score
                 
                 total_safety += safety_score
@@ -462,21 +573,19 @@ def analyze_route(request: RouteRequest):
                 })
             except Exception as e:
                 logger.warning(f"Segment scoring error at ({lat},{long}): {e}")
-                annotated_segments.append({
-                    "path": chunk, "score": 50, "color": "#eab308"
-                })
+                annotated_segments.append({"path": chunk, "score": 50, "color": "#eab308"})
         
         avg = total_safety / max(1, safety_counts)
         mn = min([s["score"] for s in annotated_segments]) if annotated_segments else 100
-        return annotated_segments, avg, mn, total_crimes
+        return annotated_segments, avg, mn, total_crimes, road_preference_score, road_preference_label, main_road_share
 
     scored_routes = []
     for idx, route in enumerate(osrm_routes):
         coords = route["geometry"]["coordinates"]
         duration = route.get("duration", 0)
         distance = route.get("distance", 0)
-        segments, avg, mn, crimes = score_route(coords)
         steps = parse_steps(route)
+        segments, avg, mn, crimes, road_score, road_label, road_share = score_route(coords, steps)
         scored_routes.append({
             "route_index": idx,
             "risk_segments": segments,
@@ -487,6 +596,9 @@ def analyze_route(request: RouteRequest):
             "distance_km": round(distance / 1000, 1),
             "total_crimes_along_route": crimes,
             "steps": steps,
+            "road_preference_score": road_score,
+            "road_preference_label": road_label,
+            "main_road_share": road_share,
         })
     
     scored_routes.sort(key=lambda r: r["average_safety_score"], reverse=True)
@@ -521,6 +633,10 @@ def analyze_route(request: RouteRequest):
         reasons.append("No crime hotspots detected along this route")
     elif alternatives and safest["total_crimes_along_route"] < max(r["total_crimes_along_route"] for r in alternatives):
         reasons.append("Fewer crime incidents along this path")
+    if safest.get("road_preference_score", 50) >= 65:
+        reasons.append("Prefers wider main roads over internal lanes")
+    elif safest.get("road_preference_score", 50) < 45:
+        reasons.append("Avoids some internal lanes, but the route still has narrow road segments")
     if alternatives and safest["duration_min"] <= min(r["duration_min"] for r in alternatives):
         reasons.append("Also the fastest route available")
     elif alternatives:

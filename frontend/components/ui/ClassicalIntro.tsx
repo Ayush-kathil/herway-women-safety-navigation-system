@@ -18,9 +18,10 @@ export default function ClassicalIntro({ onComplete }: { onComplete: () => void 
     return () => timers.forEach(clearTimeout);
   }, [onComplete]);
 
+  const easing: [number, number, number, number] = [0.42, 0, 0.58, 1];
   const textVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeInOut" as any } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: easing } },
     exit: { opacity: 0, y: -20, transition: { duration: 0.5 } }
   };
 

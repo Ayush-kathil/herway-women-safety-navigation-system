@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, Plus, Trash2, X, Phone, ShieldCheck } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface Contact {
   id: string;
@@ -12,21 +11,20 @@ interface Contact {
 }
 
 export default function TrustedContacts({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [newName, setNewName] = useState("");
-  const [newPhone, setNewPhone] = useState("");
-
-  // Load from local storage on mount
-  useEffect(() => {
+  const [contacts, setContacts] = useState<Contact[]>(() => {
+    if (typeof window === "undefined") return [];
     const saved = localStorage.getItem("herway_trusted_contacts");
     if (saved) {
       try {
-        setContacts(JSON.parse(saved));
+        return JSON.parse(saved);
       } catch (e) {
         console.error("Failed to load contacts", e);
       }
     }
-  }, []);
+    return [];
+  });
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
 
   // Save to local storage on change
   useEffect(() => {

@@ -1,8 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Clock, Sun, Moon } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface TimeSliderProps {
   hour: number;

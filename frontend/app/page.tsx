@@ -77,7 +77,7 @@ export default function Dashboard() {
   const [showDangerAlert, setShowDangerAlert] = useState(false);
   const [dangerInfo, setDangerInfo] = useState({ riskScore: 0, advice: "", crimeCount: 0 });
   const lastDangerAlertRef = useRef(0);
-  const lastStepAnnounced = useRef(-1);
+  const announcementState = useRef({ index: -1, didEarly: false, didLate: false });
 
   // GPS permission prompt
   const [showGPSPrompt, setShowGPSPrompt] = useState(false);
@@ -228,12 +228,24 @@ export default function Dashboard() {
       const nextStep = steps[closestIdx];
       const d = haversineDistance(lat, lng, nextStep.location[0], nextStep.location[1]);
       setDistanceToNext(Math.round(d));
-    }
+      
+      // Dynamic turn announcements based on distance
+      if (announcementState.current.index !== closestIdx) {
+         announcementState.current = { index: closestIdx, didEarly: false, didLate: false };
+         // Introduce the new road stretch
+         if (d > 400) {
+             voiceRef.current?.speakDirection(nextStep.instruction, d);
+         }
+      }
 
-    if (closestIdx !== lastStepAnnounced.current && closestIdx < steps.length) {
-      const step = steps[closestIdx];
-      voiceRef.current?.speakDirection(step.instruction, step.distance_m);
-      lastStepAnnounced.current = closestIdx;
+      const state = announcementState.current;
+      if (d <= 200 && !state.didEarly) {
+         voiceRef.current?.speakDirection(nextStep.instruction, d);
+         state.didEarly = true;
+      } else if (d <= 40 && !state.didLate) {
+         voiceRef.current?.speak(nextStep.instruction, true);
+         state.didLate = true;
+      }
     }
 
     if (closestIdx === steps.length - 1 && minDist < 30) {
@@ -425,7 +437,7 @@ export default function Dashboard() {
   const startNavigation = () => {
     setIsNavigating(true);
     setCurrentStepIdx(0);
-    lastStepAnnounced.current = -1;
+    announcementState.current = { index: -1, didEarly: false, didLate: false };
     lastDangerAlertRef.current = 0;
     geo.startWatching();
     voiceRef.current?.announceNavStart();

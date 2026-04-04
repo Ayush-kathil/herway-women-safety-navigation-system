@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Navigation, X } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useState } from "react";
 
 interface LocationPermissionDialogProps {

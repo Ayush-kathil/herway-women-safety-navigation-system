@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HerWay: Women's Safety Navigation System Case Study Report">
+    <title>HerWay | Enterprise Architecture Report</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            900: '#4c1d95',
+                            950: '#2e1065',
+                        },
+                        surface: {
+                            light: 'rgba(255, 255, 255, 0.8)',
+                            dark: 'rgba(15, 23, 42, 0.8)'
+                        }
+                    },
+                    boxShadow: {
+                        'glass-sm': '0 4px 16px 0 rgba(31, 38, 135, 0.05)',
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+                        'glass-lg': '0 16px 48px 0 rgba(124, 58, 237, 0.15)',
+                    },
+                    animation: {
+                        'blob': 'blob 10s infinite',
+                        'fade-in-up': 'fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(30px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* CSS Variables for Fluid Typography & Theming */
+        :root {
+            --mesh-color-1: #e0e7ff;
+            --mesh-color-2: #f3e8ff;
+            --mesh-color-3: #fae8ff;
+            --glass-border: rgba(255, 255, 255, 0.6);
+        }
+
+        body {
+            background-color: #f8fafc;
+            color: #0f172a;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated Mesh Gradient Background */
+        .mesh-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1;
+            background-image: 
+                radial-gradient(at 10% 20%, var(--mesh-color-1) 0px, transparent 50%),
+                radial-gradient(at 80% 0%, var(--mesh-color-2) 0px, transparent 50%),
+                radial-gradient(at 40% 80%, var(--mesh-color-3) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, #f1f5f9 0px, transparent 50%);
+            filter: blur(60px);
+            opacity: 0.8;
+            animation: blob 15s alternate infinite cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Hardware Accelerated Glassmorphism */
+        .glass-panel {
+            background: var(--surface-light);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            transform: translateZ(0); /* Force GPU acceleration */
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', sans-serif; letter-spacing: -0.02em; }
+        
+        /* Reveal Animation Classes via IntersectionObserver */
+        .reveal-element { opacity: 0; transform: translateY(20px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-element.is-visible { opacity: 1; transform: translateY(0); }
+        
+        /* Staggered children */
+        .stagger-1 { transition-delay: 100ms; }
+        .stagger-2 { transition-delay: 200ms; }
+        .stagger-3 { transition-delay: 300ms; }
+
+        /* Navigation Active State */
+        .nav-link { position: relative; transition: all 0.3s ease; }
+        .nav-link::before {
+            content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+            height: 0; width: 3px; background-color: #8b5cf6;
+            border-radius: 0 4px 4px 0; transition: height 0.3s ease;
+        }
+        .nav-link.active { background: linear-gradient(90deg, rgba(139,92,246,0.08) 0%, transparent 100%); color: #6d28d9; font-weight: 600; }
+        .nav-link.active::before { height: 60%; }
+
+        /* Chart Canvas Constraints */
+        .chart-wrapper { position: relative; height: 320px; width: 100%; }
+        
+        /* Code Block Styling */
+        .code-window { background: #0f172a; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        .mac-dots { display: flex; gap: 6px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .mac-dot { width: 10px; height: 10px; border-radius: 50%; }
+    </style>
+</head>
+<body class="selection:bg-brand-500 selection:text-white">
+
+    <div class="mesh-bg" aria-hidden="true"></div>
+
+    <header class="md:hidden fixed top-0 left-0 right-0 z-50 glass-panel border-b border-white/40 p-4 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
+            </div>
+            <span class="font-display font-bold text-slate-900 text-lg">HerWay</span>
+        </div>
+        <button id="mobileMenuBtn" class="p-2 text-slate-600 hover:text-brand-600 focus:outline-none" aria-label="Toggle Menu">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" id="menuIcon"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+    </header>
+
+    <nav id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 glass-panel border-r border-white/40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col pt-20 md:pt-0">
+        <div class="hidden md:flex p-8 border-b border-white/40 items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white shadow-glass-lg">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900 leading-none">HerWay</h1>
+                <p class="text-[10px] font-semibold text-brand-600 uppercase tracking-widest mt-1">Architecture Study</p>
+            </div>
+        </div>
+        
+        <ul class="flex-grow py-6 px-4 space-y-1 overflow-y-auto scrollbar-hide" role="menu">
+            <li><a href="#overview" class="nav-link block px-5 py-3 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-white/40 active flex items-center gap-3" role="menuitem"><svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg> Executive Overview</a></li>
+            <li><a href="#problem" class="nav-link block px-5 py-3 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-white/40 flex items-center gap-3" role="menuitem"><svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> Problem Space</a></li>
+            <li><a href="#solution" class="nav-link block px-5 py-3 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-white/40 flex items-center gap-3" role="menuitem"><svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg> Algorithm Design</a></li>
+            <li><a href="#architecture" class="nav-link block px-5 py-3 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-white/40 flex items-center gap-3" role="menuitem"><svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg> System Architecture</a></li>
+            <li><a href="#future" class="nav-link block px-5 py-3 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-white/40 flex items-center gap-3" role="menuitem"><svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Future Scaling</a></li>
+        </ul>
+
+        <div class="p-6 border-t border-white/40">
+            <div class="bg-brand-950 rounded-2xl p-4 text-white shadow-inner relative overflow-hidden group">
+                <div class="absolute -right-4 -top-4 w-16 h-16 bg-brand-500 rounded-full blur-2xl opacity-50"></div>
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-brand-800 border border-brand-600 flex items-center justify-center text-xs font-bold text-brand-100">AG</div>
+                    <div>
+                        <p class="text-[10px] text-brand-300 uppercase tracking-widest font-semibold mb-0.5">Project Lead</p>
+                        <p class="text-sm font-display font-bold text-white leading-tight">Ayush Gupta</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-30 hidden md:hidden" aria-hidden="true"></div>
+
+    <main class="md:ml-72 p-6 md:p-12 lg:p-16 pt-24 md:pt-16 max-w-6xl mx-auto">
+        
+        <section id="overview" class="min-h-[80vh] flex flex-col justify-center mb-24 scroll-mt-24">
+            <div class="reveal-element">
+                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/60 border border-white shadow-sm text-xs font-bold text-brand-600 uppercase tracking-widest mb-8">
+                    <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span></span>
+                    Project Status: Final Iteration
+                </div>
+                <h1 class="text-5xl md:text-7xl font-display font-extrabold text-slate-900 mb-6 tracking-tight leading-[1.1]">
+                    Next-Gen <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-blue-600">Safety</span> Routing.
+                </h1>
+                <p class="text-lg md:text-xl text-slate-600 leading-relaxed max-w-3xl font-light mb-12">
+                    A comprehensive engineering study detailing the architecture of HerWay—a platform fusing contextual route planning, ML-based risk scoring, and emergency escalation into a unified web application.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-panel p-8 rounded-3xl shadow-glass hover:shadow-glass-lg transition-all duration-300 reveal-element stagger-1">
+                    <div class="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 mb-6">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                    </div>
+                    <h3 class="font-display font-bold text-slate-900 text-xl mb-2">Contextual Routing</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed">Overrides standard shortest-path algorithms with safety-weighted edge traversal.</p>
+                </div>
+                <div class="glass-panel p-8 rounded-3xl shadow-glass hover:shadow-glass-lg transition-all duration-300 reveal-element stagger-2 relative overflow-hidden">
+                    <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-400 to-blue-500"></div>
+                    <div class="w-12 h-12 bg-brand-100 rounded-2xl flex items-center justify-center text-brand-600 mb-6">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                    </div>
+                    <h3 class="font-display font-bold text-slate-900 text-xl mb-2">ML Predictive Logic</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed">Scikit-learn models process temporal and spatial data to predict micro-location risk.</p>
+                </div>
+                <div class="glass-panel p-8 rounded-3xl shadow-glass hover:shadow-glass-lg transition-all duration-300 reveal-element stagger-3">
+                    <div class="w-12 h-12 bg-rose-100 rounded-2xl flex items-center justify-center text-rose-600 mb-6">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </div>
+                    <h3 class="font-display font-bold text-slate-900 text-xl mb-2">Decoupled SOS</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed">Failsafe emergency triggers that operate independently of the primary routing engine.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="problem" class="mb-24 scroll-mt-24">
+            <div class="reveal-element">
+                <h2 class="text-3xl md:text-4xl font-display font-extrabold text-slate-900 mb-4">The Problem Space</h2>
+                <div class="h-1 w-16 bg-brand-500 rounded-full mb-8"></div>
+                <p class="text-lg text-slate-600 leading-relaxed max-w-3xl mb-12">Traditional mapping APIs optimize for the Traveling Salesperson Problem (TSP)—focusing on distance or traffic speed. This algorithmic bias systematically ignores human-centric safety variables.</p>
+            </div>
+
+            <div class="glass-panel rounded-3xl p-8 md:p-12 shadow-glass border border-white flex flex-col lg:flex-row gap-12 items-center reveal-element">
+                <div class="flex-1 space-y-8">
+                    <div class="flex gap-4">
+                        <div class="w-1.5 bg-red-400 rounded-full"></div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-lg mb-1">Context Blindness</h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Dijkstra's or A* algorithms applied to road networks will gladly route a user down an unlit, industrial alley if it saves 45 seconds of travel time.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-1.5 bg-orange-400 rounded-full"></div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-lg mb-1">Static Evaluation</h4>
+                            <p class="text-slate-600 text-sm leading-relaxed">Current solutions rely on static user intuition. A street safe at 2:00 PM may have drastically different risk profiles at 2:00 AM.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 w-full bg-white/50 p-6 rounded-2xl shadow-inner border border-white">
+                    <h5 class="text-xs font-bold text-slate-500 uppercase tracking-widest text-center mb-4">Routing Priority Variance</h5>
+                    <div class="chart-wrapper">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="solution" class="mb-24 scroll-mt-24">
+            <div class="reveal-element">
+                <h2 class="text-3xl md:text-4xl font-display font-extrabold text-slate-900 mb-4">Algorithm & Logic Design</h2>
+                <div class="h-1 w-16 bg-brand-500 rounded-full mb-8"></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="glass-panel rounded-3xl p-8 shadow-glass reveal-element">
+                    <h3 class="text-2xl font-display font-bold text-slate-900 mb-2">Multivariate Scoring</h3>
+                    <p class="text-sm text-slate-500 mb-8">The safety index ($S_i$) is a composite score normalized between 0-100, calculated by weighing historical anomaly density against live contextual modifiers.</p>
+                    <div class="chart-wrapper h-[260px]">
+                        <canvas id="doughnutChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-3xl p-8 shadow-glass flex flex-col justify-between reveal-element stagger-1">
+                    <div>
+                        <h3 class="text-2xl font-display font-bold text-slate-900 mb-2">Micro-Segment Slicing</h3>
+                        <p class="text-sm text-slate-500 mb-6">Polylines are split into 500m computational segments. If $S_i < Threshold$ for any segment, the specific edge is penalized in the routing graph.</p>
+                    </div>
+                    
+                    <div class="bg-slate-900 p-6 rounded-2xl shadow-xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <span class="text-xs font-mono text-brand-400">Live Seg. Validation</span>
+                            <button id="toggleSimBtn" class="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded border border-white/20 transition-colors">
+                                Trigger Temporal Shift
+                            </button>
+                        </div>
+                        <div class="chart-wrapper h-[100px]">
+                            <canvas id="barChart"></canvas>
+                        </div>
+                        <p id="simLog" class="font-mono text-[10px] text-green-400 mt-4 leading-relaxed">> [SYS] Time=14:00. All segments operating within safe parameters. Traversal approved.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="architecture" class="mb-24 scroll-mt-24">
+            <div class="reveal-element">
+                <h2 class="text-3xl md:text-4xl font-display font-extrabold text-slate-900 mb-4">System Architecture</h2>
+                <div class="h-1 w-16 bg-brand-500 rounded-full mb-8"></div>
+                <p class="text-lg text-slate-600 leading-relaxed max-w-3xl mb-12">The platform utilizes a decoupled microservices approach, optimizing the client for rendering speed while offloading heavy geographic and predictive computation to a Python backend.</p>
+            </div>
+
+            <div class="code-window rounded-2xl overflow-hidden reveal-element border border-slate-700/50 mb-12">
+                <div class="mac-dots bg-[#1e293b]">
+                    <div class="mac-dot bg-red-500"></div>
+                    <div class="mac-dot bg-yellow-500"></div>
+                    <div class="mac-dot bg-green-500"></div>
+                    <div class="ml-4 text-[10px] font-mono text-slate-400 mt-0.5">app/api/endpoints/routing.py</div>
+                </div>
+                <div class="p-6 md:p-8 overflow-x-auto">
+<pre class="font-mono text-sm leading-relaxed"><span class="text-purple-400">@router.post</span>(<span class="text-green-300">"/calculate_safe_route"</span>, response_model=RouteResponse)
+<span class="text-blue-400">async def</span> <span class="text-yellow-200">generate_route</span>(request: RouteRequest, ml_service: MLService = Depends()):
+    <span class="text-slate-500"># 1. Fetch raw shortest path edges from GraphHopper/OSRM</span>
+    raw_edges = <span class="text-blue-400">await</span> geo_client.get_route(request.start, request.end)
+    
+    <span class="text-slate-500"># 2. Slice into 500m segments for granular analysis</span>
+    segments = geo_utils.slice_polyline(raw_edges, resolution=<span class="text-orange-300">500</span>)
+    
+    <span class="text-slate-500"># 3. Vectorized prediction for latency reduction</span>
+    features = extract_features_for_segments(segments, request.time_of_day)
+    safety_scores = ml_service.predict_batch(features)
+    
+    <span class="text-slate-500"># 4. Penalty application to routing graph</span>
+    <span class="text-blue-400">for</span> seg, score <span class="text-blue-400">in</span> <span class="text-yellow-200">zip</span>(segments, safety_scores):
+        <span class="text-blue-400">if</span> score &lt; config.SAFETY_THRESHOLD:
+            graph.apply_penalty(seg.edge_id, weight=calculate_penalty(score))
+            
+    <span class="text-slate-500"># 5. Recalculate if penalties exist, else return original</span>
+    <span class="text-blue-400">return</span> <span class="text-blue-400">await</span> graph.recalculate_safest_path()</pre>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 reveal-element">
+                <div class="bg-white/60 backdrop-blur border border-white p-6 rounded-2xl text-center shadow-sm">
+                    <div class="font-bold text-slate-800 text-lg mb-1">React / Next.js</div>
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest">Client Framework</div>
+                </div>
+                <div class="bg-white/60 backdrop-blur border border-white p-6 rounded-2xl text-center shadow-sm">
+                    <div class="font-bold text-slate-800 text-lg mb-1">FastAPI</div>
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest">Async Backend</div>
+                </div>
+                <div class="bg-white/60 backdrop-blur border border-white p-6 rounded-2xl text-center shadow-sm">
+                    <div class="font-bold text-slate-800 text-lg mb-1">Scikit-Learn</div>
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest">ML Pipeline</div>
+                </div>
+                <div class="bg-white/60 backdrop-blur border border-white p-6 rounded-2xl text-center shadow-sm">
+                    <div class="font-bold text-slate-800 text-lg mb-1">MapLibre GL</div>
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest">Vector Rendering</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="future" class="mb-24 scroll-mt-24">
+            <div class="reveal-element">
+                <h2 class="text-3xl md:text-4xl font-display font-extrabold text-slate-900 mb-4">Scaling Roadmap</h2>
+                <div class="h-1 w-16 bg-brand-500 rounded-full mb-12"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-panel p-8 rounded-3xl shadow-glass border-t-2 border-t-slate-800 reveal-element stagger-1">
+                    <h3 class="font-bold text-slate-900 mb-3 text-lg">Phase 1: Native Migration</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">Transition web wrappers to React Native to bypass iOS/Android background execution limits, ensuring uninterrupted GPS tracking when devices are locked.</p>
+                </div>
+                <div class="glass-panel p-8 rounded-3xl shadow-glass border-t-2 border-t-brand-500 reveal-element stagger-2">
+                    <h3 class="font-bold text-slate-900 mb-3 text-lg">Phase 2: WebSocket Hooks</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">Implement bidirectional WebSocket streams for live crowdsourcing—allowing users to drop ephemeral hazard pins that instantly propagate edge penalties.</p>
+                </div>
+                <div class="glass-panel p-8 rounded-3xl shadow-glass border-t-2 border-t-blue-500 reveal-element stagger-3">
+                    <h3 class="font-bold text-slate-900 mb-3 text-lg">Phase 3: IoT Telemetry</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">BLE (Bluetooth Low Energy) integration to support discrete hardware panic buttons (smart rings, watches) bypassing the need to interact with the screen.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer class="border-t border-slate-200/60 pt-8 pb-12 text-center text-sm text-slate-500 font-medium">
+            <p>HerWay Architecture & Engineering Report &copy; 2026</p>
+        </footer>
+    </main>
+
+    <script>
+        /**
+         * Enterprise Dashboard Controller Pattern
+         * Encapsulates logic to prevent global namespace pollution.
+         */
+        const DashboardApp = (function() {
+            
+            // --- Private Variables ---
+            let charts = {};
+            
+            // --- Configuration for Charts ---
+            const chartConfig = {
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                colorText: '#64748b',
+                colorGrid: 'rgba(226, 232, 240, 0.4)',
+                brandColors: { main: '#8b5cf6', mainLight: 'rgba(139, 92, 246, 0.2)', secondary: '#3b82f6', secondaryLight: 'rgba(59, 130, 246, 0.2)' }
+            };
+
+            // --- Chart Initialization ---
+            const initCharts = () => {
+                Chart.defaults.font.family = chartConfig.fontFamily;
+                Chart.defaults.color = chartConfig.colorText;
+                Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)';
+                Chart.defaults.plugins.tooltip.padding = 12;
+                Chart.defaults.plugins.tooltip.cornerRadius = 8;
+
+                // 1. Radar Chart
+                const ctxRadar = document.getElementById('radarChart').getContext('2d');
+                charts.radar = new Chart(ctxRadar, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Speed', 'Safety Weights', 'SOS Integ.', 'Context Data', 'Efficiency'],
+                        datasets: [
+                            { label: 'Standard TSP', data: [95, 10, 0, 10, 90], backgroundColor: 'rgba(148, 163, 184, 0.2)', borderColor: '#94a3b8', borderWidth: 2, pointRadius: 3 },
+                            { label: 'HerWay Logic', data: [75, 95, 90, 85, 70], backgroundColor: chartConfig.brandColors.mainLight, borderColor: chartConfig.brandColors.main, borderWidth: 2, pointRadius: 3 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { r: { angleLines: { color: chartConfig.colorGrid }, grid: { color: chartConfig.colorGrid }, ticks: { display: false, max: 100, min: 0 } } },
+                        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 6 } } }
+                    }
+                });
+
+                // 2. Doughnut Chart
+                const ctxDoughnut = document.getElementById('doughnutChart').getContext('2d');
+                charts.doughnut = new Chart(ctxDoughnut, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['ML Prediction (scikit)', 'Historical Anomaly', 'Temporal Mod', 'Safe Haven Proximity'],
+                        datasets: [{ data: [45, 25, 20, 10], backgroundColor: ['#7c3aed', '#8b5cf6', '#a78bfa', '#c4b5fd'], borderWidth: 0, hoverOffset: 8 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, font: {size: 11} } } } }
+                });
+
+                // 3. Segment Simulation Bar Chart
+                const ctxBar = document.getElementById('barChart').getContext('2d');
+                charts.bar = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Polyline'],
+                        datasets: [
+                            { label: 'S1', data: [500], backgroundColor: '#10b981', borderRadius: {topLeft: 4, bottomLeft: 4} },
+                            { label: 'S2', data: [500], backgroundColor: '#10b981' },
+                            { label: 'S3', data: [500], backgroundColor: '#10b981' },
+                            { label: 'S4', data: [500], backgroundColor: '#10b981' },
+                            { label: 'S5', data: [500], backgroundColor: '#10b981', borderRadius: {topRight: 4, bottomRight: 4} }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        scales: { x: { stacked: true, display: false, max: 2500 }, y: { stacked: true, display: false } },
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `Length: ${c.raw}m` } } }
+                    }
+                });
+            };
+
+            // --- Scroll Animation & Scroll Spy ---
+            const initScrollFeatures = () => {
+                // Reveal Observer
+                const revealElements = document.querySelectorAll('.reveal-element');
+                const revealObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('is-visible');
+                            observer.unobserve(entry.target); // Run once
+                        }
+                    });
+                }, { root: null, threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
+                
+                revealElements.forEach(el => revealObserver.observe(el));
+
+                // Scroll Spy for Navigation
+                const sections = document.querySelectorAll('section[id]');
+                const navLinks = document.querySelectorAll('.nav-link');
+                
+                const spyObserver = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if(entry.isIntersecting) {
+                            navLinks.forEach(link => {
+                                link.classList.remove('active', 'text-slate-900', 'bg-white/40');
+                                link.classList.add('text-slate-600');
+                                if(link.getAttribute('href') === `#${entry.target.id}`) {
+                                    link.classList.add('active', 'text-slate-900');
+                                    link.classList.remove('text-slate-600');
+                                }
+                            });
+                        }
+                    });
+                }, { rootMargin: "-40% 0px -60% 0px" });
+
+                sections.forEach(sec => spyObserver.observe(sec));
+            };
+
+            // --- UI Interactions ---
+            const initInteractions = () => {
+                // Simulation Toggle
+                const simBtn = document.getElementById('toggleSimBtn');
+                const simLog = document.getElementById('simLog');
+                let isNight = false;
+
+                simBtn.addEventListener('click', () => {
+                    isNight = !isNight;
+                    if(isNight) {
+                        charts.bar.data.datasets[2].backgroundColor = '#ef4444'; // Red danger
+                        charts.bar.data.datasets[3].backgroundColor = '#f59e0b'; // Amber caution
+                        simLog.innerHTML = `<span class="text-red-400">> [WARN] Time=02:00. Seg S3 penalty triggered (Score: 12). Seg S4 penalty triggered (Score: 45).<br>> Executing graph.recalculate_safest_path()...</span>`;
+                        simBtn.innerText = 'Reset State';
+                        simBtn.classList.add('border-red-500', 'text-red-300');
+                    } else {
+                        [2, 3].forEach(i => charts.bar.data.datasets[i].backgroundColor = '#10b981');
+                        simLog.innerHTML = `> [SYS] Time=14:00. All segments operating within safe parameters. Traversal approved.`;
+                        simBtn.innerText = 'Trigger Temporal Shift';
+                        simBtn.classList.remove('border-red-500', 'text-red-300');
+                    }
+                    charts.bar.update();
+                });
+
+                // Mobile Menu Toggle
+                const mobileBtn = document.getElementById('mobileMenuBtn');
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                
+                const toggleMenu = () => {
+                    const isClosed = sidebar.classList.contains('-translate-x-full');
+                    if (isClosed) {
+                        sidebar.classList.remove('-translate-x-full');
+                        overlay.classList.remove('hidden');
+                    } else {
+                        sidebar.classList.add('-translate-x-full');
+                        overlay.classList.add('hidden');
+                    }
+                };
+
+                mobileBtn.addEventListener('click', toggleMenu);
+                overlay.addEventListener('click', toggleMenu);
+                
+                // Close menu on link click (mobile)
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (window.innerWidth < 768) toggleMenu();
+                    });
+                });
+            };
+
+            // --- Public API ---
+            return {
+                init: () => {
+                    initCharts();
+                    initScrollFeatures();
+                    initInteractions();
+                }
+            };
+        })();
+
+        // Boot application when DOM is ready
+        document.addEventListener('DOMContentLoaded', DashboardApp.init);
+    </script>
+</body>
+</html>

@@ -13,10 +13,7 @@ import {
     ShieldCheck,
     TrendingDown,
     Route,
-    ShieldAlert,
     Users,
-    Clock,
-    ChevronRight,
     Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,7 +50,7 @@ interface SidebarProps {
     setRouteEnd: (loc: { lat: number; lng: number } | null) => void;
     setStartName: (name: string) => void;
     setEndName: (name: string) => void;
-    analyzeRoute: (s: { lat: number; lng: number }, e: { lat: number; lng: number }) => void;
+    analyzeRoute: (start: { lat: number; lng: number }, end: { lat: number; lng: number }) => Promise<void>;
     onOpenContacts: () => void;
 }
 
@@ -100,7 +97,6 @@ export default function Sidebar({
     setRouteEnd,
     setStartName,
     setEndName,
-    analyzeRoute,
     onOpenContacts,
 }: SidebarProps) {
     const [isManualSearch, setIsManualSearch] = useState(false);
@@ -249,7 +245,7 @@ export default function Sidebar({
                                     <div className="space-y-3">
                                         <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Analysis</h4>
                                         <p className="text-sm font-serif leading-relaxed text-zinc-800 dark:text-zinc-200 border-l-2 border-black dark:border-white pl-4 italic">
-                                            "{safetyData.advice}"
+                                            &ldquo;{safetyData.advice}&rdquo;
                                         </p>
                                     </div>
 
@@ -468,6 +464,18 @@ export default function Sidebar({
                                                 ` Avoids ${routeData.comparison.crimes_avoided} major risk zones.`
                                             }
                                         </div>
+                                        {routeData.recommendation_reasons && routeData.recommendation_reasons.length > 0 && (
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                {routeData.recommendation_reasons.slice(0, 3).map((reason, idx) => (
+                                                    <span
+                                                        key={idx}
+                                                        className="px-2 py-1 rounded-full bg-white/10 dark:bg-black/10 text-[9px] font-bold uppercase tracking-wider"
+                                                    >
+                                                        {reason}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="absolute top-0 right-0 p-4 opacity-10">
                                         <ShieldCheck className="w-20 h-20" />
@@ -487,7 +495,7 @@ export default function Sidebar({
                                         <Route className="w-3.5 h-3.5" />
                                         Available Routes
                                     </div>
-                                    {allRoutes.map((route: any, idx: number) => {
+                                    {allRoutes.map((route: RouteAnalysisData["recommended"], idx: number) => {
                                         // Comparison Logic
                                         const recommended = allRoutes[0];
                                         const timeDiff = recommended.duration_min - route.duration_min;
@@ -497,12 +505,12 @@ export default function Sidebar({
                                         const isVerySafe = score >= 80;
                                         const isSafe = score >= 60 && score < 80;
                                         const isModerate = score >= 40 && score < 60;
-                                        const isRisky = score < 40;
                                         
                                         let scoreColor = "text-red-500";
                                         if (isVerySafe) scoreColor = "text-emerald-500";
                                         else if (isSafe) scoreColor = "text-teal-500";
                                         else if (isModerate) scoreColor = "text-yellow-500";
+                                        // scores below 40 keep the default red
                                         else if (score >= 20) scoreColor = "text-orange-500";
                                         
                                         return (
@@ -545,6 +553,11 @@ export default function Sidebar({
                                                                 )}
                                                             </>
                                                         )}
+                                                        {route.road_preference_label && (
+                                                            <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-md border border-emerald-200/50 dark:border-emerald-800/50 shadow-sm">
+                                                                {route.road_preference_label}
+                                                            </span>
+                                                        )}
                                                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800/50 px-2 py-1 rounded-md">
                                                             <MapPin className="w-3 h-3" /> {route.distance_km} km
                                                         </div>
@@ -575,6 +588,19 @@ export default function Sidebar({
                                                          </div>
                                                      </div>
                                                 </div>
+
+                                                {route.main_road_share !== undefined && (
+                                                    <div className="mt-3 flex items-center gap-2 text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+                                                        <span className="px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                                                            Main roads {(route.main_road_share * 100).toFixed(0)}%
+                                                        </span>
+                                                        {route.road_preference_score !== undefined && (
+                                                            <span className="px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                                                                Road score {Math.round(route.road_preference_score)}/100
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                             
                                             {/* Active Indicator Line */}

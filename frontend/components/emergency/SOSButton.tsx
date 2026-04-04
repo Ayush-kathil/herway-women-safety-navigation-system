@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ShieldAlert, Siren } from "lucide-react";
 
@@ -13,7 +13,7 @@ export default function SOSButton({ location }: SOSButtonProps) {
   const [countdown, setCountdown] = useState(5);
   const [triggering, setTriggering] = useState(false);
 
-  const triggerSOS = async () => {
+  const triggerSOS = useCallback(async () => {
     setTriggering(true);
     // Haptic feedback
     if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -41,7 +41,7 @@ export default function SOSButton({ location }: SOSButtonProps) {
         window.location.href = "tel:112";
       }
     }
-  };
+  }, [location]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -53,7 +53,7 @@ export default function SOSButton({ location }: SOSButtonProps) {
       triggerSOS();
     }
     return () => clearInterval(interval);
-  }, [active, countdown]);
+  }, [active, countdown, triggerSOS]);
 
   const startSOS = () => {
     setActive(true);

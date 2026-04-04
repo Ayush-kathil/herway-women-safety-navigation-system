@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Shield, Navigation2, X } from "lucide-react";
+import { MapPin, Navigation2, X } from "lucide-react";
 
 interface GPSPermissionPromptProps {
   visible: boolean;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { SafePlace } from "@/lib/types";
 
 interface SafePlacesProps {
@@ -40,7 +40,7 @@ export default function SafePlacesManager({ lat, lng, show, onLoad }: SafePlaces
         };
 
         fetchPlaces();
-    }, [lat, lng, show]);
+    }, [lat, lng, show, onLoad]);
 
     return null; // Logic-only component for data fetching
 }

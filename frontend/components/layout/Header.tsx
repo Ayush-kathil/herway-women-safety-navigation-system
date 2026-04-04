@@ -34,7 +34,7 @@ export default function Header({
     setShowGrid,
     onLogin,
 }: HeaderProps) {
-    const { theme, setTheme } = useTheme();
+    useTheme();
 
     return (
         <header className="absolute top-6 left-6 right-6 h-16 glass z-50 flex items-center justify-between px-6 border border-white/20 dark:border-white/10 rounded-full shadow-lg backdrop-blur-xl">

@@ -3,20 +3,17 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
-  Navigation,
   ArrowUp,
   ArrowLeft,
   ArrowRight,
   CornerUpLeft,
   CornerUpRight,
+  RotateCcw,
   MapPin,
-  Clock,
-  Shield,
   X,
-  Volume2,
   ChevronUp,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { RouteStep } from "@/lib/types";
 
 interface NavigationPanelProps {
@@ -26,7 +23,7 @@ interface NavigationPanelProps {
   totalDistance: number;
   totalDuration: number;
   onStop: () => void;
-  isRerouting: boolean;
+  isRerouting?: boolean;
 }
 
 export default function NavigationPanel({
@@ -36,11 +33,15 @@ export default function NavigationPanel({
   totalDistance,
   totalDuration,
   onStop,
-  isRerouting,
 }: NavigationPanelProps) {
   const currentStep = steps[currentStepIdx];
   const nextStep = steps[currentStepIdx + 1];
   const [isExpanded, setIsExpanded] = useState(false);
+  const [mountTime] = useState(() => Date.now());
+  const arrivalTime = useMemo(
+    () => new Date(mountTime + totalDuration * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    [mountTime, totalDuration]
+  );
 
   // Helper to get icon for maneuver
   const getIcon = (maneuver: string) => {
@@ -105,7 +106,7 @@ export default function NavigationPanel({
           <div className="flex flex-col">
             <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest">Arrival</span>
             <span className="text-xl font-serif font-bold text-black dark:text-white">
-              {new Date(Date.now() + totalDuration * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {arrivalTime}
             </span>
           </div>
           <div className="flex flex-col">
@@ -158,5 +159,3 @@ export default function NavigationPanel({
   );
 }
 
-// Missing imports fix
-import { RotateCcw } from "lucide-react";
