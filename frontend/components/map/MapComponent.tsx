@@ -54,8 +54,14 @@ function toGeoJSONLine(path: number[][]) {
 
 export default function MapComponent(props: MapProps) {
   const mapRef = useRef<MapRef>(null);
-  const is3D = Boolean(props.isNavigating);
+  const [is3D, setIs3D] = useState(Boolean(props.isNavigating));
+  const [prevNavigating, setPrevNavigating] = useState(props.isNavigating);
   const [selectedPopup, setSelectedPopup] = useState<{type: 'safe', data: SafePlace} | {type: 'crime', data: CrimeHotspot} | null>(null);
+
+  if (props.isNavigating !== prevNavigating) {
+    setPrevNavigating(props.isNavigating);
+    setIs3D(Boolean(props.isNavigating));
+  }
 
   // Handle 3D transitions natively through WebGL Pitch/Bearing! 
   // This solves the CSS clipping perfectly.
