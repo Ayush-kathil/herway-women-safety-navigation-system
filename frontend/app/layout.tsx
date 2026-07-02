@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-
+import { QueryProvider } from "@/components/providers/QueryProvider";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
@@ -34,7 +34,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <QueryProvider>
+            {children}
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

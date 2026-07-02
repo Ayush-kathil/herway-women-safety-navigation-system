@@ -450,8 +450,8 @@ def analyze_route(request: RouteRequest):
     end = request.waypoints[-1]
     
     urls = [
-        f"https://routing.openstreetmap.de/routed-foot/route/v1/foot/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3&steps=true",
-        f"http://router.project-osrm.org/route/v1/foot/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3&steps=true"
+        f"https://routing.openstreetmap.de/routed-car/route/v1/driving/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3&steps=true",
+        f"http://router.project-osrm.org/route/v1/driving/{start[1]},{start[0]};{end[1]},{end[0]}?overview=full&geometries=geojson&alternatives=3&steps=true"
     ]
     
     data = None

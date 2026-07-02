@@ -83,6 +83,8 @@
     color: var(--foreground);
     font-family: var(--font-sans);
     font-feature-settings: "rlig" 1, "calt" 1;
+    min-height: 100dvh; /* Mobile browser URL bar fix */
+    overflow-x: hidden;
   }
 }
 
