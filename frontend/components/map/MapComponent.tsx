@@ -5,6 +5,7 @@ import Map, { Source, Layer, Marker, MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { motion, AnimatePresence } from "framer-motion";
 import { SafePlace, RouteStats } from "@/lib/types";
+import { ErrorBoundary } from "react-error-boundary";
 
 interface RouteSegment {
   path: number[][]; // [lat, lng] array
@@ -62,6 +63,18 @@ export default function MapComponent(props: MapProps) {
     setPrevNavigating(props.isNavigating);
     setIs3D(Boolean(props.isNavigating));
   }
+
+  const [webglFailed, setWebglFailed] = useState(false);
+  useEffect(() => {
+    try {
+      const canvas = document.createElement("canvas");
+      if (!canvas.getContext("webgl") && !canvas.getContext("experimental-webgl")) {
+        setWebglFailed(true);
+      }
+    } catch {
+      setWebglFailed(true);
+    }
+  }, []);
 
   // Handle 3D transitions natively through WebGL Pitch/Bearing! 
   // This solves the CSS clipping perfectly.
@@ -146,8 +159,17 @@ export default function MapComponent(props: MapProps) {
   const hasMultipleRoutes = (props.allRoutes?.length || 0) > 1;
   const hasAnyRoute = (props.allRoutes?.length || 0) > 0 || (props.routeSegments?.length || 0) > 0;
 
+  if (webglFailed) {
+    return (
+      <div className="w-full h-full rounded-2xl flex items-center justify-center bg-zinc-900 text-zinc-400 p-8 text-center">
+        <p>⚠️ Your device or browser does not support WebGL hardware acceleration, which is required for the 3D map.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full h-full rounded-2xl overflow-hidden glass shadow-2xl relative z-0">
+    <ErrorBoundary fallback={<div className="w-full h-full rounded-2xl flex items-center justify-center bg-zinc-900 text-red-500">Map rendering failed. Please reload.</div>}>
+    <div className="w-full h-full rounded-2xl overflow-hidden glass shadow-2xl relative z-0 touch-none">
       <Map
         ref={mapRef}
         initialViewState={{
@@ -349,5 +371,6 @@ export default function MapComponent(props: MapProps) {
 
       <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-transparent to-black/30 dark:to-white/5 z-40" />
     </div>
+    </ErrorBoundary>
   );
 }

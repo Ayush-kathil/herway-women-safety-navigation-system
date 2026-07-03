@@ -31,10 +31,12 @@ HerWay is a comprehensive web application that calculates the safest pedestrian 
 * **Hotspot Detection:** Visualizes high-risk areas using dynamic heatmaps.
 * **Emergency SOS:** One-touch alert system triggering location broadcasts to trusted contacts.
 * **Responsive UI:** Fully optimized mobile-first layout utilizing Next.js and TailwindCSS.
+* **Resilient Architecture:** Implemented TanStack Query and Zustand for global state management with robust API rate-limit handling and background caching.
+* **3D Map Optimizations:** MapLibre integration featuring WebGL hardware acceleration fail-safes and multi-touch crash protections for a seamless native-like map experience.
 
 
 ## Architecture
-* **Frontend:** Next.js 16 (App Router), TailwindCSS, React-Leaflet, Zustand, TanStack Query.
+* **Frontend:** Next.js 16 (App Router), TailwindCSS, MapLibre GL, Zustand, TanStack Query.
 * **Backend:** FastAPI (Python), Pandas for data processing, Scikit-learn for algorithmic risk scoring.
 * **Database:** Supabase (PostgreSQL with PostGIS extensions).
 
